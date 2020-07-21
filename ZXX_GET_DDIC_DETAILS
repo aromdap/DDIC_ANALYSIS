@@ -1,0 +1,27 @@
+FUNCTION zxx_get_ddic_details.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     VALUE(X_DDIC_NAME) TYPE  TABNAME
+*"  EXPORTING
+*"     VALUE(XT_DDIC_DETAILS) TYPE  ENH_T_DD03L
+*"----------------------------------------------------------------------
+DATA: li_ddic_details TYPE STANDARD TABLE OF dd03l.
+
+  SELECT * FROM dd03l
+  INTO TABLE gi_ddic_details
+  WHERE tabname EQ x_ddic_name.
+
+  IF sy-subrc EQ 0.
+    li_ddic_details[] = gi_ddic_details[].
+    DELETE li_ddic_details WHERE comptype EQ 'E'.
+    IF li_ddic_details IS NOT INITIAL.
+      CALL FUNCTION 'ZXX_EXPAND_DEEP_STRUCTURE'
+        EXPORTING
+          xt_deep_struc = li_ddic_details.
+    ENDIF.
+  ENDIF.
+
+  XT_DDIC_DETAILS[] = gi_ddic_details[].
+
+ENDFUNCTION.
