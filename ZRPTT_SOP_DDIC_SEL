@@ -1,0 +1,149 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRPTT_SOP_DDIC_SEL
+*&---------------------------------------------------------------------*
+FIELD-SYMBOLS: <gfs_t_analysis> TYPE STANDARD TABLE.
+FIELD-SYMBOLS: <gfs_t_ddic>     TYPE STANDARD TABLE.
+FIELD-SYMBOLS: <gfs_t_dev>      TYPE STANDARD TABLE.
+FIELD-SYMBOLS: <gfs_t_pro>      TYPE STANDARD TABLE.
+
+TABLES: e070, zxx_hpalm_data.
+DATA: gp_trkorr TYPE zif_ddic_analysis=>rty_trkorr.
+DATA: gp_email  TYPE /iwfnd/epm_email_address.
+CONSTANTS: gc_error   TYPE char1 VALUE 'E'.
+CONSTANTS: gc_warning TYPE char1 VALUE 'W'.
+
+
+SELECTION-SCREEN BEGIN OF BLOCK b01 WITH FRAME TITLE text-001.
+
+PARAMETERS:     p_notrel     TYPE flag DEFAULT abap_true.
+SELECT-OPTIONS: s_trkorr  FOR e070-trkorr  NO INTERVALS.
+SELECT-OPTIONS: s_datum   FOR zxx_hpalm_data-zplanned_date NO INTERVALS.
+SELECT-OPTIONS: s_reqid   FOR zxx_hpalm_data-zreq_id NO INTERVALS.
+SELECT-OPTIONS: s_status  FOR zxx_hpalm_data-zrel_status NO INTERVALS.
+
+
+SELECTION-SCREEN END OF BLOCK b01.
+
+SELECTION-SCREEN BEGIN OF BLOCK b02 WITH FRAME TITLE text-002.
+
+PARAMETER: p_send         TYPE  flag DEFAULT abap_true USER-COMMAND uc1.
+PARAMETER: p_datsub       TYPE  flag DEFAULT abap_true                          MODIF ID out.
+PARAMETER: p_addatt       TYPE  flag DEFAULT abap_true                          MODIF ID out.
+PARAMETER: p_sndr         TYPE  adr6-smtp_addr DEFAULT 'GFI_Tranports@gfi.es'   MODIF ID out.
+SELECT-OPTIONS: s_rcpnts  FOR   gp_email NO INTERVALS                           MODIF ID out.
+
+SELECTION-SCREEN BEGIN OF BLOCK b00 WITH FRAME TITLE text-000.
+
+PARAMETERS: r_db2  RADIOBUTTON GROUP rb_ USER-COMMAND uc_ DEFAULT 'X' MODIF ID out.
+PARAMETERS: r_func RADIOBUTTON GROUP rb_ MODIF ID out.
+PARAMETERS: r_tech RADIOBUTTON GROUP rb_ MODIF ID out.
+
+SELECTION-SCREEN END OF BLOCK b00.
+SELECTION-SCREEN BEGIN OF BLOCK b10 WITH FRAME TITLE text-010.
+PARAMETERS: r_wend RADIOBUTTON GROUP rb3 USER-COMMAND uc3 DEFAULT 'X' MODIF ID db2.
+PARAMETERS: r_urgn RADIOBUTTON GROUP rb3 MODIF ID db2.
+PARAMETERS: r_emer RADIOBUTTON GROUP rb3 MODIF ID db2.
+
+SELECTION-SCREEN END OF BLOCK b10.
+SELECTION-SCREEN BEGIN OF BLOCK b11 WITH FRAME TITLE text-011.
+PARAMETERS: r_fis RADIOBUTTON GROUP rb2 USER-COMMAND uc2 DEFAULT 'X' MODIF ID db3.
+PARAMETERS: r_non RADIOBUTTON GROUP rb2 MODIF ID db3.
+
+SELECTION-SCREEN END OF BLOCK b11.
+SELECTION-SCREEN END OF BLOCK b02.
+
+
+AT SELECTION-SCREEN OUTPUT.
+  LOOP AT SCREEN.
+    IF r_db2 IS INITIAL.
+      IF screen-group1 EQ 'DB2'.
+        screen-active = 0.
+        MODIFY SCREEN.
+
+      ENDIF.
+    ENDIF.
+    IF p_send IS INITIAL.
+      IF screen-group1 EQ 'OUT'.
+        screen-active = 0.
+        MODIFY SCREEN.
+
+      ENDIF.
+      IF screen-group1 EQ 'DB2'.
+        screen-active = 0.
+        MODIFY SCREEN.
+
+      ENDIF.
+    ELSE.
+      IF r_db2 IS NOT INITIAL.
+        IF screen-group1 EQ 'DB2'.
+          screen-active = 1.
+          MODIFY SCREEN.
+
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+  LOOP AT SCREEN.
+    IF r_db2 IS INITIAL OR p_send IS INITIAL.
+      IF screen-group1 EQ 'DB3'.
+        screen-active = 0.
+        MODIFY SCREEN.
+
+      ENDIF.
+    ENDIF.
+    IF r_wend IS INITIAL.
+      IF screen-group1 EQ 'DB3'.
+        screen-active = 0.
+        MODIFY SCREEN.
+
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+
+AT SELECTION-SCREEN.
+  CASE sy-ucomm.
+    WHEN 'ONLI'.
+*     Search Criteria Input Validations:
+      IF s_trkorr[] IS INITIAL AND
+         s_datum[]  IS INITIAL AND
+         s_reqid[]  IS INITIAL AND
+         s_status[] IS INITIAL.
+
+        MESSAGE text-004 TYPE gc_error DISPLAY LIKE gc_warning.
+
+      ELSEIF s_trkorr[] IS NOT INITIAL AND ( s_datum[]  IS NOT INITIAL OR
+                                             s_reqid[]  IS NOT INITIAL OR
+                                             s_status[] IS NOT INITIAL ).
+
+        MESSAGE text-009 TYPE gc_error DISPLAY LIKE gc_warning.
+      ENDIF.
+*     Email Input Validations:
+      CHECK p_send IS NOT INITIAL.
+      IF p_sndr IS NOT INITIAL.
+        IF s_rcpnts IS INITIAL.
+          MESSAGE text-005 TYPE gc_error DISPLAY LIKE gc_warning. "You might have forgotten about the Receivers email address. Please, double-check.
+        ELSEIF s_rcpnts IS NOT INITIAL.
+          IF s_rcpnts NS '@' OR s_rcpnts NS '.'.
+            MESSAGE text-006 TYPE gc_error DISPLAY LIKE gc_warning. "The Receiver email address might be missing symbols like '@' or '.'. Please, double-check it.
+          ENDIF.
+        ENDIF.
+        IF p_sndr NS '@' OR p_sndr NS '.'.
+          MESSAGE text-007 TYPE gc_error DISPLAY LIKE gc_warning. "The Sender email address might be missing symbols like '@' or '.'. Please, double-check it.
+        ENDIF.
+      ELSE.
+        IF s_rcpnts IS NOT INITIAL.
+          IF p_sndr IS INITIAL.
+            MESSAGE text-008 TYPE gc_error DISPLAY LIKE gc_warning. "You might have forgotten about the Sender email address. Please, double-check.
+          ENDIF.
+          IF p_sndr NS '@' OR p_sndr NS '.'.
+            MESSAGE text-007 TYPE gc_error DISPLAY LIKE gc_warning. "The Sender email address might be missing symbols like '@' or '.'. Please, double-check it.
+          ENDIF.
+          IF s_rcpnts NS '@' OR s_rcpnts NS '.'.
+            MESSAGE text-006 TYPE gc_error DISPLAY LIKE gc_warning. "The Receiver email address might be missing symbols like '@' or '.'. Please, double-check it.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+
+
+
+  ENDCASE.
