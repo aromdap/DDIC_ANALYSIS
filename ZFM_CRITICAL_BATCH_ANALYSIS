@@ -1,0 +1,167 @@
+FUNCTION zfm_critical_batch_analysis.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  EXPORTING
+*"     REFERENCE(ET_DDIC_OBJECTS) TYPE  STTY_STRING_TABLE
+*"----------------------------------------------------------------------
+
+  DATA: lt_options                             TYPE STANDARD TABLE OF rfc_db_opt.
+  DATA: ls_options                             TYPE rfc_db_opt.
+  DATA: lt_fields                              TYPE STANDARD TABLE OF rfc_db_fld.
+  DATA: ls_fields                              TYPE rfc_db_fld.
+  DATA: lt_data                                TYPE STANDARD TABLE OF tab512.
+  DATA: ls_data                                TYPE tab512.
+  DATA: ls_ddic_objects                        TYPE sstr_string.
+  DATA: lv_chr        TYPE string VALUE ''''.
+  DATA: lv_data       TYPE string.
+  DATA: lv_lines      TYPE i.
+  DATA: lv_first_line TYPE abap_bool  VALUE 'X'.
+  DATA: lv_fieldname TYPE string.
+
+
+  ls_fields-fieldname = 'ZZVARIANT'.
+  APPEND ls_fields TO lt_fields[].
+
+  ls_options-text = text-000.
+  APPEND ls_options TO lt_options[].
+
+  CALL FUNCTION 'RFC_READ_TABLE' DESTINATION 'UAPCLNT300'
+    EXPORTING
+      query_table = 'ZBATCH_SEQUENCE'
+    TABLES
+      options     = lt_options[]
+      fields      = lt_fields[]
+      data        = lt_data[].
+  IF sy-subrc EQ 0.
+    CLEAR: lt_fields, lt_options.
+    ls_fields-fieldname = 'REPORT'.
+    APPEND ls_fields TO lt_fields[].
+    ls_options-text = ' ( '.
+    APPEND ls_options TO lt_options.
+    lv_fieldname = 'VARIANT'.
+    LOOP AT lt_data[] INTO ls_data.
+      IF lv_first_line = abap_false.
+        ls_options-text = ' OR '.
+        APPEND ls_options TO lt_options.
+      ENDIF.
+      lv_data = ls_data.
+      ls_options-text = lv_fieldname && ` = ` && lv_chr && lv_data && lv_chr.
+      APPEND ls_options TO lt_options.
+      lv_first_line = abap_false.
+    ENDLOOP.
+    ls_options-text = ' ) '.
+    APPEND ls_options TO lt_options.
+    CLEAR: lt_data[].
+    CALL FUNCTION 'RFC_READ_TABLE' DESTINATION 'UAPCLNT300'
+      EXPORTING
+        query_table = 'VARID'
+      TABLES
+        options     = lt_options[]
+        fields      = lt_fields[]
+        data        = lt_data[].
+    IF sy-subrc EQ 0.
+      SORT lt_data[].
+      DELETE ADJACENT DUPLICATES FROM lt_data[] COMPARING ALL FIELDS.
+      CLEAR: lt_fields, lt_options.
+      ls_fields-fieldname = 'INCLUDE'.
+      APPEND ls_fields TO lt_fields[].
+      ls_options-text = ' ( '.
+      APPEND ls_options TO lt_options.
+      lv_fieldname = 'MASTER'.
+      lv_first_line = abap_true.
+      LOOP AT lt_data[] INTO ls_data.
+        IF lv_first_line = abap_false.
+          ls_options-text = ' OR '.
+          APPEND ls_options TO lt_options.
+        ENDIF.
+        lv_data = ls_data.
+        ls_options-text = lv_fieldname && ` = ` && lv_chr && lv_data && lv_chr.
+        APPEND ls_options TO lt_options.
+        lv_first_line = abap_false.
+      ENDLOOP.
+      ls_options-text = ' ) '.
+      APPEND ls_options TO lt_options.
+      CLEAR: lt_data[].
+      CALL FUNCTION 'RFC_READ_TABLE' DESTINATION 'UAPCLNT300'
+        EXPORTING
+          query_table = 'D010INC'
+        TABLES
+          options     = lt_options[]
+          fields      = lt_fields[]
+          data        = lt_data[].
+      IF sy-subrc EQ 0.
+      SORT lt_data[].
+      DELETE ADJACENT DUPLICATES FROM lt_data[] COMPARING ALL FIELDS.
+      CLEAR: lt_fields, lt_options.
+      ls_fields-fieldname = 'NAME'.
+      APPEND ls_fields TO lt_fields[].
+      ls_options-text = ' ( '.
+      APPEND ls_options TO lt_options.
+      lv_fieldname = 'INCLUDE'.
+      lv_first_line = abap_true.
+      LOOP AT lt_data[] INTO ls_data.
+        IF lv_first_line = abap_false.
+          ls_options-text = ' OR '.
+          APPEND ls_options TO lt_options.
+        ENDIF.
+        lv_data = ls_data.
+        ls_options-text = lv_fieldname && ` = ` && lv_chr && lv_data && lv_chr.
+        APPEND ls_options TO lt_options.
+        lv_first_line = abap_false.
+      ENDLOOP.
+      ls_options-text = ' ) '.
+      APPEND ls_options TO lt_options.
+      CLEAR: lt_data[].
+      CALL FUNCTION 'RFC_READ_TABLE' DESTINATION 'UAPCLNT300'
+        EXPORTING
+          query_table = 'WBCROSSGT'
+        TABLES
+          options     = lt_options[]
+          fields      = lt_fields[]
+          data        = lt_data[].
+      IF sy-subrc EQ 0.
+        SORT lt_data[].
+        DELETE ADJACENT DUPLICATES FROM lt_data[] COMPARING ALL FIELDS.
+        CLEAR: lt_fields, lt_options.
+        ls_fields-fieldname = 'ROLLNAME'.
+        APPEND ls_fields TO lt_fields[].
+        ls_options-text = ' ( '.
+        APPEND ls_options TO lt_options.
+        lv_fieldname = 'TABNAME'.
+        lv_first_line = abap_true.
+        LOOP AT lt_data[] INTO ls_data.
+          IF lv_first_line = abap_false.
+            ls_options-text = ' OR '.
+            APPEND ls_options TO lt_options.
+          ENDIF.
+          lv_data = ls_data.
+          ls_options-text = lv_fieldname && ` = ` && lv_chr && lv_data && lv_chr.
+          APPEND ls_options TO lt_options.
+          lv_first_line = abap_false.
+        ENDLOOP.
+        ls_options-text = ' ) '.
+        APPEND ls_options TO lt_options.
+**        CLEAR: lt_data[].
+**        CALL FUNCTION 'RFC_READ_TABLE' DESTINATION 'UAPCLNT300'
+**          EXPORTING
+**            query_table = 'DD03VV'
+**          TABLES
+**            options     = lt_options[]
+**            fields      = lt_fields[]
+**            data        = lt_data[].
+        IF sy-subrc EQ 0.
+          SORT lt_data[] ASCENDING.
+          DELETE ADJACENT DUPLICATES FROM lt_data[] COMPARING ALL FIELDS.
+          DELETE lt_data[] WHERE wa = ''.
+          DELETE lt_data[] WHERE wa = 'MANDT'.
+          LOOP AT lt_data[] INTO ls_data.
+            ls_ddic_objects-value = ls_data-wa.
+            APPEND ls_ddic_objects TO et_ddic_objects[].
+
+          ENDLOOP.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+    ENDIF.
+  ENDIF.
+ENDFUNCTION.
