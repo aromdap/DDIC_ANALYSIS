@@ -1,0 +1,2111 @@
+class ZCL_DDIC_ANALYSIS definition
+  public
+  final
+  create public .
+
+public section.
+
+  interfaces ZIF_DDIC_ANALYSIS .
+
+  data S_TRKORR type ZIF_DDIC_ANALYSIS=>RTY_TRKORR .
+  data V_CHECK_NOT_RELEASED type FLAG value 'X' ##NO_TEXT.
+  data T_ANALYSIS type ZIF_DDIC_ANALYSIS=>TTY_OUTPUT .
+  data T_TRKORR type ZIF_DDIC_ANALYSIS=>TTY_TRKORR .
+  data T_RELATIONSHIPS type ZIF_DDIC_ANALYSIS=>TTY_RLTNSHP .
+  data T_RFCDEST type ZIF_DDIC_ANALYSIS=>TTY_TVARVC .
+  data T_SUPPORTED type ZIF_DDIC_ANALYSIS=>TTY_TVARVC .
+  data T_E070 type ZIF_DDIC_ANALYSIS=>TTY_E070 .
+  data T_E071 type ZIF_DDIC_ANALYSIS=>TTY_E071 .
+  data T_DDIC_DATA type ZIF_DDIC_ANALYSIS=>TTY_DDIC .
+  data T_HPALM_DATA type ZIF_DDIC_ANALYSIS=>TTY_HPALM_DATA .
+  data T_TR_DEF_CR type ZIF_DDIC_ANALYSIS=>TTY_TR_DEF_CR .
+  data R_DDIC_OBJECT type ZIF_DDIC_ANALYSIS=>RTY_DDIC .
+
+  methods COMPOSE_DESTINATION
+    importing
+      !IV_SYSTEM type STRING
+    returning
+      value(RV_RFCDEST) type RFCDEST .
+  methods LOAD_INPUTS
+    importing
+      !IV_CHECK_RELEASED type FLAG default 'X'
+      !IR_TRKORR type ZIF_DDIC_ANALYSIS=>RTY_TRKORR optional
+      !IR_REQUID type ZIF_DDIC_ANALYSIS=>RTY_REQID optional
+      !IR_PLANNED type ZIF_DDIC_ANALYSIS=>RTY_PLANNED optional
+      !IR_STATUS type ZIF_DDIC_ANALYSIS=>RTY_STATUS optional
+    exceptions
+      EMPTY_INPUT_TRS .
+  methods GET_DDIC_DETAILS .
+  methods GET_OBJECT_DETAILS .
+  methods KICK_IT_OFF .
+  methods REFINE_ME .
+  methods PULL_FUNCTIONAL
+    returning
+      value(RT_ANALYSIS) type ZIF_DDIC_ANALYSIS=>TTY_FUNCTIONAL_D .
+  methods PULL_DB2
+    importing
+      !IV_DROP_LOW_RISK type FLAG default ABAP_FALSE
+    returning
+      value(RT_ANALYSIS) type ZIF_DDIC_ANALYSIS=>TTY_DB2 .
+  methods PULL_TECHNICAL
+    returning
+      value(RT_ANALYSIS) type ZIF_DDIC_ANALYSIS=>TTY_OUTPUT .
+  methods PRE_START
+    importing
+      !IR_REQUID type ZIF_DDIC_ANALYSIS=>RTY_REQID optional
+      !IR_PLANNED type ZIF_DDIC_ANALYSIS=>RTY_PLANNED optional
+      !IR_STATUS type ZIF_DDIC_ANALYSIS=>RTY_STATUS optional
+      !IV_UPDATE_TRKORR_LIST type FLAG
+    exceptions
+      NO_CRITERIA_PROVIDED .
+  methods START .
+private section.
+
+  methods _PULL_RISK
+    importing
+      !IV_REQUID type ANY
+    returning
+      value(RV_DDIC_RISK) type STRING .
+  methods _CATEGORISE_STRUCTURE_RISK
+    importing
+      !IS_DEV type DD03V
+      !IS_PROD type DD03V
+      !IT_PROD type ZIF_DDIC_ANALYSIS=>TTY_DD03V
+    changing
+      !CV_ALL_RIGTH type STRING
+      !CV_FIELDNAME_CHANGES type STRING
+      !CV_KEYFLAG_CHANGES type STRING
+      !CV_ROLLNAME_CHANGES type STRING
+      !CV_DATATYPE_CHANGES type STRING
+      !CV_DATALENGTH_CHANGES type STRING .
+  methods _CHECK_BRAND_NEW_OBJECTS
+    changing
+      !CT_ANALYSIS type ZIF_DDIC_ANALYSIS=>TTY_OUTPUT .
+  methods _CHECK_CRITICAL
+    changing
+      !CT_ANALYSIS type ZIF_DDIC_ANALYSIS=>TTY_OUTPUT .
+  methods _CHECK_DATA_ELEMENTS
+    changing
+      !CT_ANALYSIS type ZIF_DDIC_ANALYSIS=>TTY_OUTPUT .
+  methods _CHECK_DATA_ELEMENTS_DEEP
+    importing
+      !IS_DD04V type ZIF_DDIC_ANALYSIS=>TY_DD04V
+    changing
+      !CS_ANALYSIS type ZIF_DDIC_ANALYSIS=>TY_OUTPUT .
+  methods _CHECK_DOMAINS
+    changing
+      !CT_ANALYSIS type ZIF_DDIC_ANALYSIS=>TTY_OUTPUT .
+  methods _CHECK_DOMAINS_DEEP
+    importing
+      !IS_DD40V type ZIF_DDIC_ANALYSIS=>TY_DD40V
+    changing
+      !CS_ANALYSIS type ZIF_DDIC_ANALYSIS=>TY_OUTPUT .
+*   Categorisation of VERY HIGH RISK DDIC objects:
+  methods _CHECK_IDEX
+    changing
+      !CT_ANALYSIS type ZIF_DDIC_ANALYSIS=>TTY_OUTPUT .
+  methods _CHECK_INDEX
+    changing
+      !CT_ANALYSIS type ZIF_DDIC_ANALYSIS=>TTY_OUTPUT .
+  methods _CHECK_PROD_ENTRIES
+    changing
+      !CT_ANALYSIS type ZIF_DDIC_ANALYSIS=>TTY_OUTPUT .
+  methods _CHECK_SINGLE_ELEMENTS_DEEP
+    importing
+      !IS_DEV type ANY
+      !IS_PROD type ANY
+    changing
+      !CS_ANALYSIS type ZIF_DDIC_ANALYSIS=>TY_OUTPUT .
+  methods _CHECK_STRUCTURE_LENGTH
+    changing
+      !CS_ANALYSIS type ZIF_DDIC_ANALYSIS=>TY_OUTPUT .
+  methods _CHECK_STRUCTURE_LEVEL
+    changing
+      !CT_ANALYSIS type ZIF_DDIC_ANALYSIS=>TTY_OUTPUT .
+  methods _CHECK_STRUCTURE_SORT
+    importing
+      !IS_DD03V type ZIF_DDIC_ANALYSIS=>TY_DDXXV
+    changing
+      !CS_ANALYSIS type ZIF_DDIC_ANALYSIS=>TY_OUTPUT .
+  methods _CHECK_STRUCTURE_SORT_DEEP
+    importing
+      !IS_DD03V type ZIF_DDIC_ANALYSIS=>TY_DDXXV
+    changing
+      !CS_ANALYSIS type ZIF_DDIC_ANALYSIS=>TY_OUTPUT .
+  methods _CHECK_TABLETYPE_SORT
+    importing
+      !IS_DD40V type ZIF_DDIC_ANALYSIS=>TY_DDXXV
+    changing
+      !CS_ANALYSIS type ZIF_DDIC_ANALYSIS=>TY_OUTPUT .
+*   Categorisation of HIGH RISK DDIC objects: Where-Is-Used References & Number of entries in Production
+  methods _CHECK_USE_REFERENCES
+    changing
+      !CT_ANALYSIS type ZIF_DDIC_ANALYSIS=>TTY_OUTPUT .
+  methods _COMPOSE_CONDITIONS
+    importing
+      !IV_FIELD type STRING
+      !IT_TRKORR type ZIF_DDIC_ANALYSIS=>TTY_TRKORR
+    changing
+      !CT_OPTIONS type ZIF_DDIC_ANALYSIS=>TTY_CLAUSE .
+  methods _COMPOSE_RANGE
+    importing
+      !IV_TYP type STRING
+    returning
+      value(RR_TYP) type ZIF_DDIC_ANALYSIS=>RTY_TYP .
+  methods _FETCH_E070_DATA
+    importing
+      !IT_TRKORR type ZIF_DDIC_ANALYSIS=>TTY_TRKORR
+    returning
+      value(RT_E070) type ZIF_DDIC_ANALYSIS=>TTY_E070 .
+  methods _FETCH_E071_DATA
+    importing
+      !IT_TRKORR type ZIF_DDIC_ANALYSIS=>TTY_TRKORR
+    returning
+      value(RT_E071) type ZIF_DDIC_ANALYSIS=>TTY_E071 .
+  methods _FETCH_HPALM_DATA
+    returning
+      value(RT_ANALYSIS) type ZIF_DDIC_ANALYSIS=>TTY_OUTPUT .
+  methods _FETCH_PACKAGE_DATA
+    changing
+      !CT_ANALYSIS type ZIF_DDIC_ANALYSIS=>TTY_OUTPUT .
+  methods _FETCH_RFC_DEST_FROM_TR
+    importing
+      !IV_TRKORR type TRKORR
+    returning
+      value(RV_RFCDEST) type RFCDEST .
+  methods _FORMAT_LENGTH
+    importing
+      !IV_LENG type ANY
+    returning
+      value(RS_FORMAT) type ZIF_DDIC_ANALYSIS=>TY_FORMAT .
+  methods _GET_DDIC_OBJECT
+    returning
+      value(RR_DDIC) type ZIF_DDIC_ANALYSIS=>RTY_DDIC .
+  methods _GET_DDXXV_DETAILS
+    importing
+      !IS_ANALYSIS type ZIF_DDIC_ANALYSIS=>TY_OUTPUT
+    exporting
+      !ET_ASSIGNED type ZIF_DDIC_ANALYSIS=>TY_DDXXV
+      !EV_TYP type STRING .
+  methods _GET_DESTINATIONS
+    returning
+      value(RT_RFCDEST) type ZIF_DDIC_ANALYSIS=>TTY_TVARVC .
+  methods _GET_RELATIONSHIPS
+    importing
+      !IT_TRKORR type ZIF_DDIC_ANALYSIS=>TTY_TRKORR
+    returning
+      value(RT_TRKORR) type ZIF_DDIC_ANALYSIS=>TTY_TRKORR .
+  methods _GET_SUPPORTED_TRS
+    returning
+      value(RT_SUPPORT) type ZIF_DDIC_ANALYSIS=>TTY_TVARVC .
+  methods _GET_TRS
+    returning
+      value(RT_TRKORR) type ZIF_DDIC_ANALYSIS=>TTY_TRKORR .
+  methods _LOOK_AT_TESTER
+    importing
+      !IV_PATTERN type STRING
+      !IV_TESTER type STRING
+    returning
+      value(RV_RESULT) type STRING .
+  methods _REFINE_ADD_HPALM_DATA
+    importing
+      !IT_DDIC_DATA type ZIF_DDIC_ANALYSIS=>TTY_DDIC
+    returning
+      value(RT_ANALYSIS) type ZIF_DDIC_ANALYSIS=>TTY_OUTPUT .
+  methods _REFINE_SORT_BY_RISK
+    returning
+      value(RT_SORTED) type ZIF_DDIC_ANALYSIS=>TTY_OUTPUT .
+  methods _SPLIT_AND_COUNT
+    importing
+      !IV_CHANGES type STRING
+    returning
+      value(RS_COUNT) type ZIF_DDIC_ANALYSIS=>TY_CHANGES .
+ENDCLASS.
+
+
+
+CLASS ZCL_DDIC_ANALYSIS IMPLEMENTATION.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_DDIC_ANALYSIS->COMPOSE_DESTINATION
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_SYSTEM                      TYPE        STRING
+* | [<-()] RV_RFCDEST                     TYPE        RFCDEST
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD: compose_destination.
+    DATA: lv_mandt TYPE string.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    CASE iv_system(3).
+      WHEN 'BAD' OR 'SOS'.
+        lv_mandt = '200'.
+      WHEN OTHERS.
+        lv_mandt = '300'.
+
+    ENDCASE.
+    CONCATENATE iv_system(3) 'CLNT' lv_mandt INTO rv_rfcdest.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_DDIC_ANALYSIS->GET_DDIC_DETAILS
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: get_ddic_details.
+    DATA: lt_trkorr        TYPE zif_ddic_analysis=>tty_trkorr.
+    DATA: lt_e071          TYPE zif_ddic_analysis=>tty_e071.
+    DATA: lt_ddic_data     TYPE zif_ddic_analysis=>tty_ddic.
+    DATA: ls_e071          TYPE e071.
+    DATA: ls_tvarvc        TYPE tvarvc.
+    DATA: lv_rfc_dest TYPE rfcdes-rfcdest.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    LOOP AT me->t_supported[] INTO ls_tvarvc.
+*     Get a copy of all the DDIC objects:
+      lt_e071[] = me->t_e071[].
+*     Stick to those that we are currently handling to divert them towards correct RFC connections:
+      DELETE lt_e071[] WHERE trkorr(3) NE ls_tvarvc-low.
+      CHECK lt_e071[] IS NOT INITIAL.
+*     Get the first TR to fetch the correct destination:
+      READ TABLE lt_e071[] INTO ls_e071 INDEX 1.
+      CHECK sy-subrc EQ 0.
+      lv_rfc_dest = me->_fetch_rfc_dest_from_tr( ls_e071-trkorr ).
+*     Retrieve all the DDIC details of the objects in E071.
+      IF lv_rfc_dest(3) EQ 'UAD' OR lv_rfc_dest(3) EQ 'CAD'.        ">>>>>>>>>>> FM: ZFM_DDIC_ANALYSIS only exists for the moment in UAD & CAD
+        CALL FUNCTION 'ZFM_DDIC_ANALYSIS' DESTINATION lv_rfc_dest
+          EXPORTING
+            it_e071             = lt_e071
+            iv_analysis         = 'DEEP'
+          IMPORTING
+            et_obj_comparations = lt_ddic_data.
+*     Once retrieved, save in class attribute table:
+        APPEND LINES OF lt_ddic_data[] TO me->t_ddic_data[].
+        CLEAR: lt_e071, ls_e071, lt_ddic_data.
+      ENDIF.
+    ENDLOOP.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_DDIC_ANALYSIS->GET_OBJECT_DETAILS
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: get_object_details.
+    DATA: lt_trkorr        TYPE zif_ddic_analysis=>tty_trkorr.
+    DATA: lt_e071          TYPE zif_ddic_analysis=>tty_e071.
+    DATA: ls_tvarvc        TYPE tvarvc.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+*   Compose destinations:
+    me->t_rfcdest[]     = me->_get_destinations( ).
+    me->t_supported[]   = me->_get_supported_trs( ).
+    me->r_ddic_object[] = me->_get_ddic_object( ).
+*   Move TRs into class table:
+    IF me->v_check_not_released IS INITIAL.
+      me->t_trkorr[] = me->_get_trs( ).
+    ELSE.
+      me->t_trkorr[] = me->_get_relationships( me->_get_trs( ) ).
+    ENDIF.
+*   From TRs / TOCs, get Tasks and Release Status from E070:
+    SORT me->t_trkorr[] DESCENDING.
+    LOOP AT me->t_supported[] INTO ls_tvarvc.
+*     Get a copy of all the TRs provided:
+      lt_trkorr[] = me->t_trkorr[].
+*     Stick to those that we are currently handling to divert them towards correct RFC connections:
+      DELETE lt_trkorr[] WHERE trkorr(3) NE ls_tvarvc-low.
+      CHECK lt_trkorr[] IS NOT INITIAL.
+*     Get E071 information from source system:
+      lt_e071[] = me->_fetch_e071_data( lt_trkorr[] ).
+*     Stick only to DDIC objects:
+      DELETE lt_e071[] WHERE object NOT IN me->r_ddic_object[].
+*     Once filtered, save:
+      APPEND LINES OF lt_e071[] TO me->t_e071[].
+
+    ENDLOOP.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_DDIC_ANALYSIS->KICK_IT_OFF
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: kick_it_off.
+
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+*   Populate the main output table which is going to hprod the analysis outcome:
+    me->t_analysis = me->_fetch_hpalm_data( ).
+    me->_fetch_package_data( CHANGING ct_analysis = me->t_analysis ).
+*   Categorisation of LOW RISK DDIC objects: Not yet in Production. Brand New!
+    me->_check_brand_new_objects( CHANGING ct_analysis = me->t_analysis ).
+*   Categorisation of VERY HIGH RISK DDIC objects:
+    me->_check_idex( CHANGING ct_analysis = me->t_analysis ).
+    me->_check_critical( CHANGING ct_analysis = me->t_analysis ).
+    me->_check_index( CHANGING ct_analysis = me->t_analysis ).
+*   Categorisation of HIGH RISK DDIC objects: Tables, structures, data elements, domains and table types.
+    me->_check_structure_level( CHANGING ct_analysis = me->t_analysis ).
+    me->_check_data_elements( CHANGING ct_analysis = me->t_analysis ).
+    me->_check_domains( CHANGING ct_analysis = me->t_analysis ).
+*   Categorisation of HIGH RISK DDIC objects: Where-Is-Used References & Number of entries in Production
+    me->_check_prod_entries( CHANGING ct_analysis = me->t_analysis ).
+    me->_check_use_references( CHANGING ct_analysis = me->t_analysis ).
+
+
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_DDIC_ANALYSIS->LOAD_INPUTS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_CHECK_RELEASED              TYPE        FLAG (default ='X')
+* | [--->] IR_TRKORR                      TYPE        ZIF_DDIC_ANALYSIS=>RTY_TRKORR(optional)
+* | [--->] IR_REQUID                      TYPE        ZIF_DDIC_ANALYSIS=>RTY_REQID(optional)
+* | [--->] IR_PLANNED                     TYPE        ZIF_DDIC_ANALYSIS=>RTY_PLANNED(optional)
+* | [--->] IR_STATUS                      TYPE        ZIF_DDIC_ANALYSIS=>RTY_STATUS(optional)
+* | [EXC!] EMPTY_INPUT_TRS
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD: load_inputs.
+  DATA: lv_update_tr_list TYPE flag VALUE abap_true.
+*  ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨  *
+  IF ir_trkorr[] IS SUPPLIED AND ir_trkorr[] IS NOT INITIAL.
+    me->s_trkorr[] = ir_trkorr[].
+    lv_update_tr_list = abap_false.
+
+  ENDIF.
+* Get data from ZXX_HPALM_DATA & ZXX_TR_DEF_CR tables and, if needed, update TR list:
+  me->pre_start( EXPORTING iv_update_trkorr_list  = lv_update_tr_list
+                           ir_requid              = ir_requid
+                           ir_planned             = ir_planned
+                           ir_status              = ir_status    ).
+
+ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_DDIC_ANALYSIS->PRE_START
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IR_REQUID                      TYPE        ZIF_DDIC_ANALYSIS=>RTY_REQID(optional)
+* | [--->] IR_PLANNED                     TYPE        ZIF_DDIC_ANALYSIS=>RTY_PLANNED(optional)
+* | [--->] IR_STATUS                      TYPE        ZIF_DDIC_ANALYSIS=>RTY_STATUS(optional)
+* | [--->] IV_UPDATE_TRKORR_LIST          TYPE        FLAG
+* | [EXC!] NO_CRITERIA_PROVIDED
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD pre_start.
+    DATA: ls_tr_def_cr              TYPE zxx_tr_def_cr.
+    DATA: ls_trkorr                 TYPE LINE OF zif_ddic_analysis=>rty_trkorr.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    IF ir_requid[] IS NOT INITIAL OR
+       ir_planned[] IS NOT INITIAL OR
+       ir_status[] IS NOT INITIAL.
+      SELECT *
+        FROM zxx_hpalm_data
+        INTO TABLE me->t_hpalm_data[]
+        WHERE zreq_id       IN ir_requid
+        AND   zplanned_date IN ir_planned
+        AND   zrel_status   IN ir_status.
+      IF sy-subrc EQ 0.
+        SELECT *
+          FROM zxx_tr_def_cr
+          INTO TABLE me->t_tr_def_cr[]
+          FOR ALL ENTRIES IN me->t_hpalm_data[]
+          WHERE zreq_id  EQ me->t_hpalm_data-zreq_id.
+        IF sy-subrc EQ 0.
+          CHECK iv_update_trkorr_list IS NOT INITIAL.
+          ls_trkorr-sign   = 'I'.
+          ls_trkorr-option = 'EQ'.
+          LOOP AT me->t_tr_def_cr[] INTO ls_tr_def_cr.
+            ls_trkorr-low = ls_tr_def_cr-trkorr.
+            APPEND ls_trkorr TO me->s_trkorr[].
+
+          ENDLOOP.
+          SORT me->s_trkorr[] BY low DESCENDING.
+          DELETE ADJACENT DUPLICATES FROM me->s_trkorr[] COMPARING low.
+
+        ENDIF.
+      ENDIF.
+    ELSEIF me->s_trkorr[] IS NOT INITIAL.
+      SELECT *
+        FROM zxx_tr_def_cr
+        INTO TABLE me->t_tr_def_cr[]
+        WHERE trkorr  IN me->s_trkorr.
+      IF sy-subrc EQ 0.
+        SELECT *
+         FROM zxx_hpalm_data
+         INTO TABLE me->t_hpalm_data[]
+         FOR ALL ENTRIES IN me->t_tr_def_cr[]
+         WHERE zreq_id eq me->t_tr_def_cr-zreq_id.
+
+      ENDIF.
+    ELSE.
+      RAISE no_criteria_provided.
+
+    ENDIF.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_DDIC_ANALYSIS->PULL_DB2
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_DROP_LOW_RISK               TYPE        FLAG (default =ABAP_FALSE)
+* | [<-()] RT_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TTY_DB2
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD pull_db2.
+    DATA: ls_analysis TYPE zif_ddic_analysis=>ty_output.
+    DATA: ls_db2      TYPE zif_ddic_analysis=>ty_db2.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    LOOP AT me->t_analysis[] INTO ls_analysis.
+      ls_db2-req_id          = ls_analysis-req_id         .
+      ls_db2-change          = ls_analysis-change         .
+      ls_db2-trkorr          = ls_analysis-trkorr         .
+      ls_db2-package         = ls_analysis-package        .
+      ls_db2-r3_sid          = ls_analysis-r3_sid         .
+      ls_db2-pgmid           = ls_analysis-pgmid          .
+      ls_db2-object          = ls_analysis-object         .
+      ls_db2-obj_name        = ls_analysis-obj_name       .
+      ls_db2-obj_type        = ls_analysis-obj_type       .
+      ls_db2-entries_in_prod = ls_analysis-entries_in_prod.
+      ls_db2-where_use_ref   = ls_analysis-where_use_ref  .
+      ls_db2-risk_assess     = ls_analysis-risk_assess    .
+      ls_db2-risk_level      = ls_analysis-risk_level     .
+
+      APPEND ls_db2 TO rt_analysis[].
+      CLEAR ls_db2.
+
+    ENDLOOP.
+*   In Weekend Release FIS Stop Scenario, only "Very High" or "High Risk" is sent to DB2:
+    CHECK iv_drop_low_risk EQ abap_true.
+    DELETE rt_analysis[] WHERE risk_level CS 'Low'.
+    DELETE rt_analysis[] WHERE risk_level CS '---'.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_DDIC_ANALYSIS->PULL_FUNCTIONAL
+* +-------------------------------------------------------------------------------------------------+
+* | [<-()] RT_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TTY_FUNCTIONAL_D
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD pull_functional.
+    TYPES: BEGIN OF lty_names,
+             bname      TYPE xubname,
+             name_textc TYPE ad_namtext,
+           END OF lty_names.
+    DATA: lt_names      TYPE STANDARD TABLE OF lty_names.
+    DATA: ls_names      TYPE lty_names.
+    DATA: ls_hpalm_data TYPE zxx_hpalm_data.
+    DATA: ls_tr_def_cr  TYPE zxx_tr_def_cr.
+    DATA: ls_analysis   TYPE zif_ddic_analysis=>ty_output.
+    DATA: ls_functional TYPE zif_ddic_analysis=>ty_functional_d.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+
+    IF me->t_hpalm_data IS NOT INITIAL.
+      SELECT bname name_textc
+        FROM user_addr
+        INTO TABLE lt_names[]
+        FOR ALL ENTRIES IN me->t_hpalm_data[]
+        WHERE bname EQ me->t_hpalm_data-zibsp_owner_id
+        OR   bname EQ me->t_hpalm_data-zsup_owner_id.
+    ENDIF.
+    LOOP AT me->t_hpalm_data INTO ls_hpalm_data.
+      ls_functional-req_id      = ls_hpalm_data-zreq_id.
+      ls_functional-status      = ls_hpalm_data-zrel_status.
+      ls_functional-change_name = ls_hpalm_data-zname.
+      ls_functional-description = ls_hpalm_data-zdescription.
+*     Get CoE Owner Name:
+      READ TABLE lt_names[] INTO ls_names WITH KEY bname = ls_hpalm_data-zibsp_owner_id.
+      IF sy-subrc EQ 0.
+        ls_functional-owner_name = ls_names-name_textc.
+
+      ENDIF.
+      CLEAR ls_names.
+*     Get Developer Name:
+      READ TABLE lt_names[] INTO ls_names WITH KEY bname = ls_hpalm_data-zsup_owner_id.
+      IF sy-subrc EQ 0.
+        ls_functional-supplier_name = ls_names-name_textc.
+
+      ENDIF.
+*     Categorise if TR is linked or not:
+      READ TABLE me->t_tr_def_cr[] INTO ls_tr_def_cr WITH KEY zreq_id = ls_hpalm_data-zreq_id.
+      IF sy-subrc EQ 0.
+        ls_functional-linked = 'Y'.
+      ELSE.
+        ls_functional-linked = 'N'.
+
+      ENDIF.
+*     Categorise the DDIC Risk:
+      ls_functional-ddic_risk = me->_pull_risk( ls_hpalm_data-zreq_id ).
+
+      APPEND ls_functional TO rt_analysis[].
+      CLEAR: ls_functional.
+
+    ENDLOOP.
+    SORT rt_analysis[] BY req_id linked ASCENDING.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_DDIC_ANALYSIS->PULL_TECHNICAL
+* +-------------------------------------------------------------------------------------------------+
+* | [<-()] RT_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TTY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method PULL_TECHNICAL.
+    rt_analysis[] = me->t_analysis[].
+
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_DDIC_ANALYSIS->REFINE_ME
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: refine_me.
+    CONSTANTS: lc_sign              TYPE char1 VALUE 'I'.
+    CONSTANTS: lc_option            TYPE char2 VALUE 'CP'.
+    TYPES: lrty_trkorr              TYPE RANGE OF trkorr.
+    DATA: lr_trkorr                 TYPE lrty_trkorr.
+    DATA: ls_trkorr                 TYPE LINE OF lrty_trkorr.
+    DATA: ls_trkorr_t               TYPE zif_ddic_analysis=>ty_trkorr.
+    DATA: ls_e070                   TYPE e070.
+    FIELD-SYMBOLS: <lfs_s_analysis> TYPE zif_ddic_analysis=>ty_output.
+    FIELD-SYMBOLS: <lfs_s_ddic>     TYPE zif_ddic_analysis=>ty_ddic.
+    DATA: lv_bypass_int             TYPE i.
+    DATA: lt_tr_def_cr              TYPE STANDARD TABLE OF zxx_tr_def_cr.
+    DATA: ls_tr_def_cr              TYPE zxx_tr_def_cr.
+    DATA: lt_hpalm_data             TYPE STANDARD TABLE OF zxx_hpalm_data.
+    DATA: ls_hpalm_data             TYPE zxx_hpalm_data.
+    DATA: lt_analysis_aux           TYPE zif_ddic_analysis=>tty_output.
+    DATA: lt_analysis_sorted        TYPE zif_ddic_analysis=>tty_output.
+    DATA: lv_criteria               TYPE string.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+
+
+    ls_trkorr-sign   = lc_sign.
+    ls_trkorr-option = lc_option.
+    LOOP AT me->t_trkorr[] INTO ls_trkorr_t.
+      ls_trkorr-low = ls_trkorr_t-trkorr.
+      APPEND ls_trkorr TO lr_trkorr.
+      CLEAR: ls_trkorr-low.
+
+    ENDLOOP.
+    DELETE me->t_analysis[] WHERE trkorr NOT IN lr_trkorr.
+    SORT me->t_analysis[] BY trkorr obj_name object DESCENDING.
+    DELETE ADJACENT DUPLICATES FROM me->t_analysis[] COMPARING ALL FIELDS.
+    LOOP AT me->t_analysis[] ASSIGNING <lfs_s_analysis>.
+*     Look for tasks and swap them for their original TR:
+      READ TABLE me->t_e070[] INTO ls_e070 WITH KEY trkorr = <lfs_s_analysis>-trkorr.
+      IF sy-subrc EQ 0 AND ls_e070-strkorr IS NOT INITIAL.
+        <lfs_s_analysis>-trkorr = ls_e070-strkorr.
+
+      ENDIF.
+*     Look for status of TR: Released or not!?
+      READ TABLE me->t_e070[] INTO ls_e070 WITH KEY trkorr = <lfs_s_analysis>-trkorr.
+      IF sy-subrc EQ 0.
+        IF ls_e070-trstatus EQ 'R'.
+          <lfs_s_analysis>-trstatus = 'Released'.
+        ELSE.
+          <lfs_s_analysis>-trstatus = 'Not Released'.
+
+        ENDIF.
+      ENDIF.
+*     Populate the "Where-Is-Used" entries in Development and, if object is a Table, entries in Production:
+      READ TABLE me->t_ddic_data[] ASSIGNING <lfs_s_ddic> WITH KEY obj_name = <lfs_s_analysis>-obj_name.
+      CHECK sy-subrc EQ 0.
+      DESCRIBE TABLE <lfs_s_ddic>-where_use_ref LINES lv_bypass_int.
+      <lfs_s_analysis>-where_use_ref = lv_bypass_int.
+      IF <lfs_s_analysis>-obj_type EQ 'Table'.
+        <lfs_s_analysis>-entries_in_prod = <lfs_s_ddic>-entries_in_prod.
+
+      ENDIF.
+
+    ENDLOOP.
+    SORT me->t_analysis[] BY trkorr obj_name object DESCENDING.
+    DELETE ADJACENT DUPLICATES FROM me->t_analysis[] COMPARING trkorr obj_name risk_assess risk_level.
+
+
+*   Look for tasks and swap them for their original TR:
+    LOOP AT me->t_ddic_data[] ASSIGNING <lfs_s_ddic>.
+
+      READ TABLE me->t_e070[] INTO ls_e070 WITH KEY trkorr = <lfs_s_ddic>-trkorr.
+      IF sy-subrc EQ 0 AND ls_e070-strkorr IS NOT INITIAL.
+        <lfs_s_ddic>-trkorr = ls_e070-strkorr.
+
+      ENDIF.
+    ENDLOOP.
+
+*   Complete analysis with HPALM data:
+    me->t_analysis[] = me->_refine_add_hpalm_data( me->t_ddic_data[] ).
+*   Sort data by Risk Assessment:
+    me->t_analysis[] = me->_refine_sort_by_risk( ).
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_DDIC_ANALYSIS->START
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD start.
+    me->get_object_details( ).
+    me->get_ddic_details( ).
+    IF me->t_ddic_data[] IS NOT INITIAL.
+      me->kick_it_off( ).
+      me->refine_me( ).
+    ENDIF.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CATEGORISE_STRUCTURE_RISK
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IS_DEV                         TYPE        DD03V
+* | [--->] IS_PROD                        TYPE        DD03V
+* | [--->] IT_PROD                        TYPE        ZIF_DDIC_ANALYSIS=>TTY_DD03V
+* | [<-->] CV_ALL_RIGTH                   TYPE        STRING
+* | [<-->] CV_FIELDNAME_CHANGES           TYPE        STRING
+* | [<-->] CV_KEYFLAG_CHANGES             TYPE        STRING
+* | [<-->] CV_ROLLNAME_CHANGES            TYPE        STRING
+* | [<-->] CV_DATATYPE_CHANGES            TYPE        STRING
+* | [<-->] CV_DATALENGTH_CHANGES          TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _categorise_structure_risk.
+    DATA: ls_prod     TYPE dd03v.
+    DATA: lv_position TYPE string.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+*   Check the FIELDNAME is the same.
+    IF is_dev-fieldname NE is_prod-fieldname.
+*     Track only the first change of positions in table, since the rest of fields will be all shifted:
+      IF cv_fieldname_changes IS INITIAL.
+        cv_fieldname_changes = is_dev-position.
+        SHIFT cv_fieldname_changes LEFT DELETING LEADING '0'.
+        CONCATENATE '(' cv_fieldname_changes ')' INTO cv_fieldname_changes.
+      ENDIF.
+*      CONCATENATE '<' cv_fieldname_changes INTO cv_fieldname_changes SEPARATED BY '*'.
+
+    ENDIF.
+
+*   Check details for fields which were already present in table / structure (not added / not removed ).
+    READ TABLE it_prod INTO ls_prod WITH KEY fieldname = is_dev-fieldname.
+    IF sy-subrc EQ 0.
+*     Check the ROLLNAME is the same.
+      IF is_dev-rollname NE ls_prod-rollname.
+        CONCATENATE '<' cv_rollname_changes INTO cv_rollname_changes SEPARATED BY '*'.
+
+      ENDIF.
+*     Check the DATATYPE is the same.
+      IF is_dev-datatype NE ls_prod-datatype.
+        CONCATENATE '<' cv_datatype_changes INTO cv_datatype_changes SEPARATED BY '*'.
+
+      ENDIF.
+*     Check the KEYFLAG is the same.
+      IF is_dev-keyflag NE ls_prod-keyflag.
+        CONCATENATE '<' cv_keyflag_changes INTO cv_keyflag_changes SEPARATED BY '*'.
+
+      ENDIF.
+*       Check the LENG is the same.
+      IF is_dev-leng NE ls_prod-leng.
+        IF is_dev-leng LT is_prod-leng.
+          CONCATENATE '<' cv_datalength_changes INTO cv_datalength_changes SEPARATED BY '*'.
+        ELSE.
+          CONCATENATE '>' cv_datalength_changes INTO cv_datalength_changes SEPARATED BY '*'.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+*   Accumulate all the possible error flags within the ALL RIGHT! check parameter!
+    CONCATENATE cv_fieldname_changes cv_rollname_changes cv_keyflag_changes cv_datatype_changes cv_datalength_changes INTO cv_all_rigth.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CHECK_BRAND_NEW_OBJECTS
+* +-------------------------------------------------------------------------------------------------+
+* | [<-->] CT_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TTY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _check_brand_new_objects.
+    DATA: lv_component TYPE string.
+    DATA: lv_lines     TYPE i.
+    FIELD-SYMBOLS: <lfs_s_analysis> TYPE zif_ddic_analysis=>ty_output.
+    FIELD-SYMBOLS: <lfs_s_ddic_component> TYPE zif_ddic_analysis=>ty_ddic.
+    FIELD-SYMBOLS: <lfs_t_ddic_component> TYPE ANY TABLE.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    LOOP AT ct_analysis ASSIGNING <lfs_s_analysis> WHERE risk_level IS INITIAL.
+      CASE <lfs_s_analysis>-object.
+        WHEN 'DOMD' OR 'DOMA'.
+          lv_component = 'PROD_DD01V'.
+        WHEN 'DTED' OR 'DTEL'.
+          lv_component = 'PROD_DD04V'.
+        WHEN 'TABD' OR 'TABL' OR 'TABT'.
+          lv_component = 'PROD_DD03V'.
+        WHEN 'TTYP' OR 'TTYD'.
+          lv_component = 'PROD_DD40V'.
+        WHEN 'INDX'.
+          lv_component = 'PROD_DD12V'.
+        WHEN OTHERS.
+          <lfs_s_analysis>-risk_assess = 'Object out of scope'.
+          <lfs_s_analysis>-risk_level  = '---'.
+          CONTINUE.
+
+      ENDCASE.
+      READ TABLE me->t_ddic_data[] ASSIGNING <lfs_s_ddic_component> WITH KEY trkorr   = <lfs_s_analysis>-trkorr
+                                                                             object   = <lfs_s_analysis>-object
+                                                                             obj_name = <lfs_s_analysis>-obj_name.
+      IF sy-subrc EQ 0.
+        ASSIGN COMPONENT lv_component OF STRUCTURE <lfs_s_ddic_component> TO <lfs_t_ddic_component>.
+        CHECK <lfs_t_ddic_component> IS ASSIGNED.
+        DESCRIBE TABLE <lfs_t_ddic_component> LINES lv_lines.
+        IF lv_lines EQ 0.
+          <lfs_s_analysis>-risk_assess = 'Brand NEW object'.
+          <lfs_s_analysis>-risk_level  = 'Low Risk'.
+
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CHECK_CRITICAL
+* +-------------------------------------------------------------------------------------------------+
+* | [<-->] CT_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TTY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _check_critical.
+    DATA: ls_ddic_data TYPE zif_ddic_analysis=>ty_ddic.
+    FIELD-SYMBOLS: <lfs_s_analysis> TYPE zif_ddic_analysis=>ty_output.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    LOOP AT ct_analysis[] ASSIGNING <lfs_s_analysis>.
+      READ TABLE me->t_ddic_data INTO ls_ddic_data WITH KEY obj_name = <lfs_s_analysis>-obj_name.
+      IF sy-subrc EQ 0.
+        CHECK ls_ddic_data-critical IS NOT INITIAL.
+        IF <lfs_s_analysis>-risk_level IS INITIAL.
+          <lfs_s_analysis>-risk_assess = 'DANGER: Object is used in a Critical Batch!'.
+          <lfs_s_analysis>-risk_level  = 'Very High Risk'.
+        ELSE.
+          CONCATENATE <lfs_s_analysis>-risk_assess '& used in a Critical Batch!' INTO <lfs_s_analysis>-risk_assess SEPARATED BY space.
+
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CHECK_DATA_ELEMENTS
+* +-------------------------------------------------------------------------------------------------+
+* | [<-->] CT_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TTY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _check_data_elements.
+    FIELD-SYMBOLS: <lfs_s_analysis> TYPE zif_ddic_analysis=>ty_output.
+    DATA: lv_component TYPE string.
+    DATA: ls_components TYPE zif_ddic_analysis=>ty_dd04v.
+    FIELD-SYMBOLS: <lfs_s_ddic_component> TYPE zif_ddic_analysis=>ty_ddic.
+    FIELD-SYMBOLS: <lfs_t_analysis> TYPE ANY TABLE.
+    FIELD-SYMBOLS: <lfs_t_dd04v>    TYPE ANY TABLE.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    LOOP AT ct_analysis ASSIGNING <lfs_s_analysis> WHERE risk_level IS INITIAL.
+*   Extract data details from DDIC structure:
+      READ TABLE me->t_ddic_data[] ASSIGNING <lfs_s_ddic_component> WITH KEY trkorr   = <lfs_s_analysis>-trkorr
+                                                                             object   = <lfs_s_analysis>-object
+                                                                             obj_name = <lfs_s_analysis>-obj_name.
+      IF sy-subrc EQ 0.
+        CHECK <lfs_s_ddic_component>-object EQ 'DTEL' OR <lfs_s_ddic_component>-object EQ 'DTED'.
+        DO 2 TIMES.
+          CASE sy-index.
+            WHEN 1.
+              lv_component = 'PROD_DD04V'.
+              ASSIGN ls_components-t_dd04v_prod TO <lfs_t_dd04v>.
+            WHEN 2.
+              lv_component = 'DEV_DD04V'.
+              ASSIGN ls_components-t_dd04v_dev TO <lfs_t_dd04v>.
+          ENDCASE.
+          ASSIGN COMPONENT lv_component OF STRUCTURE <lfs_s_ddic_component> TO <lfs_t_analysis>.
+          CHECK <lfs_t_analysis> IS ASSIGNED.
+          <lfs_t_dd04v> = <lfs_t_analysis>.
+          UNASSIGN: <lfs_t_dd04v>, <lfs_t_analysis>.
+
+        ENDDO.
+*     Dive into the details of the Data Element and categorise:
+        me->_check_data_elements_deep(  EXPORTING is_dd04v   = ls_components
+                                        CHANGING cs_analysis = <lfs_s_analysis> ).
+
+
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CHECK_DATA_ELEMENTS_DEEP
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IS_DD04V                       TYPE        ZIF_DDIC_ANALYSIS=>TY_DD04V
+* | [<-->] CS_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _check_data_elements_deep.
+    DATA: ls_dd04v_dev TYPE dd04v.
+    DATA: ls_dd04v_prod TYPE dd04v.
+    DATA: ls_leng_dev         TYPE zif_ddic_analysis=>ty_format.
+    DATA: ls_leng_pro         TYPE zif_ddic_analysis=>ty_format.
+    DATA: lv_ok_domain        TYPE i.
+    DATA: lv_ok_datatype      TYPE i.
+    DATA: lv_ok_datalength    TYPE i.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    READ TABLE is_dd04v-t_dd04v_dev INTO ls_dd04v_dev INDEX 1.
+    READ TABLE is_dd04v-t_dd04v_prod INTO ls_dd04v_prod INDEX 1.
+    IF sy-subrc EQ 0.
+      me->_check_single_elements_deep( EXPORTING is_dev      = ls_dd04v_dev
+                                                 is_prod     = ls_dd04v_prod
+                                       CHANGING  cs_analysis = cs_analysis ).
+    ENDIF.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CHECK_DOMAINS
+* +-------------------------------------------------------------------------------------------------+
+* | [<-->] CT_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TTY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _check_domains.
+    FIELD-SYMBOLS: <lfs_s_analysis> TYPE zif_ddic_analysis=>ty_output.
+    DATA: lv_component TYPE string.
+    DATA: ls_components TYPE zif_ddic_analysis=>ty_dd40v.
+    FIELD-SYMBOLS: <lfs_s_ddic_component> TYPE zif_ddic_analysis=>ty_ddic.
+    FIELD-SYMBOLS: <lfs_t_analysis> TYPE ANY TABLE.
+    FIELD-SYMBOLS: <lfs_t_dd40v>    TYPE ANY TABLE.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    LOOP AT ct_analysis ASSIGNING <lfs_s_analysis> WHERE risk_level IS INITIAL.
+*   Extract data details from DDIC structure:
+      READ TABLE me->t_ddic_data[] ASSIGNING <lfs_s_ddic_component> WITH KEY trkorr   = <lfs_s_analysis>-trkorr
+                                                                             object   = <lfs_s_analysis>-object
+                                                                             obj_name = <lfs_s_analysis>-obj_name.
+      IF sy-subrc EQ 0.
+        CHECK <lfs_s_ddic_component>-object EQ 'DOMD' OR <lfs_s_ddic_component>-object EQ 'DOMA'.
+        DO 2 TIMES.
+          CASE sy-index.
+            WHEN 1.
+              lv_component = 'PROD_DD01V'.
+              ASSIGN ls_components-t_dd40v_prod TO <lfs_t_dd40v>.
+            WHEN 2.
+              lv_component = 'DEV_DD01V'.
+              ASSIGN ls_components-t_dd40v_dev TO <lfs_t_dd40v>.
+          ENDCASE.
+          ASSIGN COMPONENT lv_component OF STRUCTURE <lfs_s_ddic_component> TO <lfs_t_analysis>.
+          CHECK <lfs_t_analysis> IS ASSIGNED.
+          <lfs_t_dd40v> = <lfs_t_analysis>.
+          UNASSIGN: <lfs_t_dd40v>, <lfs_t_analysis>.
+
+        ENDDO.
+*     Dive into the details of the Data Element and categorise:
+        me->_check_domains_deep(  EXPORTING is_dd40v   = ls_components
+                                  CHANGING cs_analysis = <lfs_s_analysis> ).
+
+
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CHECK_DOMAINS_DEEP
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IS_DD40V                       TYPE        ZIF_DDIC_ANALYSIS=>TY_DD40V
+* | [<-->] CS_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _check_domains_deep.
+    DATA: ls_dd40v_dev TYPE dd40v.
+    DATA: ls_dd40v_prod TYPE dd40v.
+    DATA: ls_leng_dev         TYPE zif_ddic_analysis=>ty_format.
+    DATA: ls_leng_pro         TYPE zif_ddic_analysis=>ty_format.
+    DATA: lv_ok_domain        TYPE i.
+    DATA: lv_ok_datatype      TYPE i.
+    DATA: lv_ok_datalength    TYPE i.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    READ TABLE is_dd40v-t_dd40v_dev INTO ls_dd40v_dev INDEX 1.
+    READ TABLE is_dd40v-t_dd40v_prod INTO ls_dd40v_prod INDEX 1.
+    IF sy-subrc EQ 0.
+      me->_check_single_elements_deep( EXPORTING is_dev      = ls_dd40v_dev
+                                                 is_prod     = ls_dd40v_prod
+                                       CHANGING  cs_analysis = cs_analysis ).
+    ENDIF.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CHECK_IDEX
+* +-------------------------------------------------------------------------------------------------+
+* | [<-->] CT_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TTY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _check_idex.
+    DATA: ls_ddic_data TYPE zif_ddic_analysis=>ty_ddic.
+    FIELD-SYMBOLS: <lfs_s_analysis> TYPE zif_ddic_analysis=>ty_output.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    LOOP AT ct_analysis[] ASSIGNING <lfs_s_analysis>.
+      READ TABLE me->t_ddic_data INTO ls_ddic_data WITH KEY obj_name = <lfs_s_analysis>-obj_name.
+      IF sy-subrc EQ 0.
+        CHECK ls_ddic_data-idex IS NOT INITIAL.
+        <lfs_s_analysis>-risk_assess = 'DANGER: IDEX object identified!'.
+        <lfs_s_analysis>-risk_level  = 'Very High Risk'.
+
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CHECK_INDEX
+* +-------------------------------------------------------------------------------------------------+
+* | [<-->] CT_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TTY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _check_index.
+    DATA: lt_dd12v_dev              TYPE zif_ddic_analysis=>tty_dd12v.
+    DATA: lt_dd12v_prod             TYPE zif_ddic_analysis=>tty_dd12v.
+    DATA: ls_dd12v_dev              TYPE dd12v.
+    DATA: ls_dd12v_prod             TYPE dd12v.
+    DATA: lv_tester                 TYPE string.
+    DATA: lv_assessment             TYPE string.
+    DATA: lv_new                    TYPE string.
+    DATA: lv_mod                    TYPE string.
+    DATA: ls_ddic_data              TYPE zif_ddic_analysis=>ty_ddic.
+    FIELD-SYMBOLS: <lfs_s_analysis> TYPE zif_ddic_analysis=>ty_output.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    LOOP AT ct_analysis[] ASSIGNING <lfs_s_analysis> WHERE object EQ 'INDX'.
+      READ TABLE me->t_ddic_data INTO ls_ddic_data WITH KEY obj_name = <lfs_s_analysis>-obj_name.
+      IF sy-subrc EQ 0.
+        lt_dd12v_dev[] = ls_ddic_data-dev_dd12v.
+        lt_dd12v_prod[] = ls_ddic_data-prod_dd12v.
+        LOOP AT lt_dd12v_dev[] INTO ls_dd12v_dev.
+          READ TABLE lt_dd12v_prod[] INTO ls_dd12v_prod WITH KEY indexname = ls_dd12v_dev-indexname.
+          IF sy-subrc EQ 0.
+            "Modification on existing index:
+            CONCATENATE '/MOD/' lv_tester INTO lv_tester.
+          ELSE.
+            "New index created for table:
+            CONCATENATE '/NEW/' lv_tester INTO lv_tester.
+
+          ENDIF.
+        ENDLOOP.
+*       Review the tester results: get a count of the patterns
+        lv_new = me->_look_at_tester( iv_pattern = '/NEW/'
+                                      iv_tester  = lv_tester ).
+        lv_mod = me->_look_at_tester( iv_pattern = '/MOD/'
+                                      iv_tester  = lv_tester ).
+*       Compose risk assesment:
+        CHECK lv_new NE '0' OR lv_mod NE '0'.
+        CONCATENATE 'Index: New(' lv_new ') Mod(' lv_mod ')' INTO lv_assessment.
+*       Generate final analysis:
+        IF <lfs_s_analysis>-risk_level IS INITIAL.
+          <lfs_s_analysis>-risk_assess = lv_assessment.
+          <lfs_s_analysis>-risk_level  = 'High Risk'.
+        ELSE.
+          CASE <lfs_s_analysis>-risk_level.
+            WHEN 'Low Risk'.
+              "Step over: High Risk prevails!
+              <lfs_s_analysis>-risk_level  = 'High Risk'.
+            WHEN OTHERS.
+              "Continue: Do not step over Very High Risk!
+
+          ENDCASE.
+          CONCATENATE <lfs_s_analysis>-risk_assess lv_assessment INTO <lfs_s_analysis>-risk_assess SEPARATED BY space.
+
+        ENDIF.
+      ENDIF.
+      CLEAR: lv_tester, lv_new, lv_mod, lt_dd12v_dev, lt_dd12v_prod.
+
+    ENDLOOP.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CHECK_PROD_ENTRIES
+* +-------------------------------------------------------------------------------------------------+
+* | [<-->] CT_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TTY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _check_prod_entries.
+    DATA: ls_tvarvc TYPE tvarvc.
+    DATA: lv_lines  TYPE i.
+    FIELD-SYMBOLS: <lfs_s_analysis> TYPE zif_ddic_analysis=>ty_output.
+    FIELD-SYMBOLS: <lfs_s_ddic_component> TYPE zif_ddic_analysis=>ty_ddic.
+    FIELD-SYMBOLS: <lfs_v_ddic_component> TYPE any.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    SELECT SINGLE * FROM tvarvc INTO ls_tvarvc WHERE name = 'Z_DDIC_ANALYSIS_NUM_ENTRY_PROD'.
+    CHECK sy-subrc EQ 0.
+    LOOP AT ct_analysis ASSIGNING <lfs_s_analysis>.
+      CHECK <lfs_s_analysis>-object EQ 'TABD'
+         OR <lfs_s_analysis>-object EQ 'TABT'
+         OR <lfs_s_analysis>-object EQ 'TABL'
+         OR <lfs_s_analysis>-object EQ 'INDX'.
+      READ TABLE me->t_ddic_data[] ASSIGNING <lfs_s_ddic_component> WITH KEY trkorr   = <lfs_s_analysis>-trkorr
+                                                                             obj_name = <lfs_s_analysis>-obj_name.
+      IF sy-subrc EQ 0.
+        ASSIGN COMPONENT 'ENTRIES_IN_PROD' OF STRUCTURE <lfs_s_ddic_component> TO <lfs_v_ddic_component>.
+        CHECK <lfs_v_ddic_component> IS ASSIGNED.
+        <lfs_s_analysis>-entries_in_prod = <lfs_v_ddic_component>.
+        IF <lfs_v_ddic_component> GT ls_tvarvc-low.
+          IF <lfs_s_analysis>-risk_level IS INITIAL.
+            <lfs_s_analysis>-risk_assess = 'WARNING: High number of Entries in Production'.
+            <lfs_s_analysis>-risk_level  = 'Low Risk ***'.
+
+          ELSEIF <lfs_s_analysis>-risk_level NS '***'.
+            CONCATENATE <lfs_s_analysis>-risk_level '***' INTO <lfs_s_analysis>-risk_level SEPARATED BY space.
+
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CHECK_SINGLE_ELEMENTS_DEEP
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IS_DEV                         TYPE        ANY
+* | [--->] IS_PROD                        TYPE        ANY
+* | [<-->] CS_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _check_single_elements_deep.
+    DATA: ls_leng_dev         TYPE zif_ddic_analysis=>ty_format.
+    DATA: ls_leng_pro         TYPE zif_ddic_analysis=>ty_format.
+    FIELD-SYMBOLS: <lfs_v_dev_leng> TYPE any.
+    FIELD-SYMBOLS: <lfs_v_prod_leng> TYPE any.
+    FIELD-SYMBOLS: <lfs_v_dev_type> TYPE any.
+    FIELD-SYMBOLS: <lfs_v_prod_type> TYPE any.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    ASSIGN COMPONENT 'LENG' OF STRUCTURE is_dev TO <lfs_v_dev_leng>.
+    ASSIGN COMPONENT 'LENG' OF STRUCTURE is_prod TO <lfs_v_prod_leng>.
+    ASSIGN COMPONENT 'DATATYPE' OF STRUCTURE is_dev TO <lfs_v_dev_type>.
+    ASSIGN COMPONENT 'DATATYPE' OF STRUCTURE is_prod TO <lfs_v_prod_type>.
+
+*   Format lengths from Dev & Pro to compare and report:
+    ls_leng_dev = me->_format_length( <lfs_v_dev_leng> ).
+    ls_leng_pro = me->_format_length( <lfs_v_prod_leng> ).
+
+    IF <lfs_v_dev_type> NE <lfs_v_prod_type>.
+      CONCATENATE 'DEV <> PROD: Type Change [ Dev > (' <lfs_v_dev_type> ') Prod > (' <lfs_v_prod_type> ') ]' INTO cs_analysis-risk_assess  SEPARATED BY space.
+      cs_analysis-risk_level  = 'High Risk'.
+    ENDIF.
+    IF ls_leng_dev-leng_str NE ls_leng_pro-leng_str.
+      IF cs_analysis-risk_assess IS INITIAL AND cs_analysis-risk_level IS INITIAL.
+        CONCATENATE 'DEV <> PROD: Length Change [ Dev > (' ls_leng_dev-leng_str ') Prod > (' ls_leng_pro-leng_str ') ]' INTO cs_analysis-risk_assess   SEPARATED BY space.
+        IF ls_leng_dev-leng_int GT ls_leng_pro-leng_int.
+          cs_analysis-risk_level  = 'Low Risk'.
+
+        ELSE.
+          cs_analysis-risk_level  = 'High Risk'.
+
+        ENDIF.
+
+      ELSE.
+        CONCATENATE cs_analysis-risk_assess 'Length Change [ Dev > (' ls_leng_dev-leng_str ') Prod > (' ls_leng_pro-leng_str ') ]' INTO cs_analysis-risk_assess SEPARATED BY space.
+        IF ls_leng_dev-leng_int GT ls_leng_pro-leng_int.
+          IF cs_analysis-risk_level  = 'High Risk'.
+            "CONTINUE.
+          ELSE.
+            cs_analysis-risk_level  = 'Low Risk'.
+          ENDIF.
+        ELSE.
+          cs_analysis-risk_level  = 'High Risk'.
+
+        ENDIF.
+      ENDIF.
+    ENDIF.
+    IF cs_analysis-risk_assess IS INITIAL AND cs_analysis-risk_level IS INITIAL.
+      cs_analysis-risk_assess = 'DEV = PROD: Type & Length OK'.
+      cs_analysis-risk_level  = 'Low Risk'.
+
+    ENDIF.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CHECK_STRUCTURE_LENGTH
+* +-------------------------------------------------------------------------------------------------+
+* | [<-->] CS_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _check_structure_length.
+    DATA: lv_type TYPE string.
+    DATA: ls_components TYPE zif_ddic_analysis=>ty_ddxxv.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+*   Extract data details from DDIC structure:
+    me->_get_ddxxv_details( EXPORTING is_analysis = cs_analysis
+                            IMPORTING et_assigned = ls_components
+                                      ev_typ = lv_type ).
+
+    IF lv_type CS 'DD03V'.
+      FIELD-SYMBOLS: <table>           TYPE STANDARD TABLE.
+      ASSIGN ls_components-t_ddxxv_prod->*  TO <table>.
+      DESCRIBE TABLE <table> LINES ls_components-v_lines_prod.
+      ASSIGN ls_components-t_ddxxv_dev->*  TO <table>.
+      DESCRIBE TABLE <table> LINES ls_components-v_lines_dev.
+      me->_check_structure_sort(  EXPORTING is_dd03v = ls_components
+                                  CHANGING cs_analysis = cs_analysis ).
+    ELSEIF lv_type CS 'DD40V'.
+      me->_check_tabletype_sort(  EXPORTING is_dd40v = ls_components
+                                  CHANGING cs_analysis = cs_analysis ).
+
+
+    ENDIF.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CHECK_STRUCTURE_LEVEL
+* +-------------------------------------------------------------------------------------------------+
+* | [<-->] CT_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TTY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _check_structure_level.
+    FIELD-SYMBOLS: <lfs_s_analysis> TYPE zif_ddic_analysis=>ty_output.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    LOOP AT ct_analysis ASSIGNING <lfs_s_analysis> WHERE risk_level IS INITIAL.
+      me->_check_structure_length( CHANGING cs_analysis = <lfs_s_analysis> ).
+      CHECK <lfs_s_analysis>-risk_level IS INITIAL.
+
+
+    ENDLOOP.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CHECK_STRUCTURE_SORT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IS_DD03V                       TYPE        ZIF_DDIC_ANALYSIS=>TY_DDXXV
+* | [<-->] CS_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _check_structure_sort.
+*   Case A. Structure in Production is shorter than the one in Development:
+    IF is_dd03v-v_lines_prod LT is_dd03v-v_lines_dev.
+      me->_check_structure_sort_deep( EXPORTING is_dd03v = is_dd03v
+                                      CHANGING cs_analysis = cs_analysis ).
+*   Case B. Structures in Production & Development have the same length:
+    ELSEIF is_dd03v-v_lines_prod EQ is_dd03v-v_lines_dev.
+      me->_check_structure_sort_deep( EXPORTING is_dd03v = is_dd03v
+                                      CHANGING cs_analysis = cs_analysis ).
+*   Case C. Structure in Production is larger than the one in Development:
+    ELSEIF is_dd03v-v_lines_prod GT is_dd03v-v_lines_dev.
+      cs_analysis-risk_assess = 'DEV <> PROD: DEV-STRUCT < PROD-STRUCT'.
+      cs_analysis-risk_level  = 'High Risk'.
+
+    ENDIF.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CHECK_STRUCTURE_SORT_DEEP
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IS_DD03V                       TYPE        ZIF_DDIC_ANALYSIS=>TY_DDXXV
+* | [<-->] CS_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _check_structure_sort_deep.
+    DATA: ls_dd03_dev                       TYPE dd03v.
+    DATA: ls_dd03_prod                      TYPE dd03v.
+    DATA: lv_all_right_up_to_this_point     TYPE flag VALUE abap_false.
+    DATA: lv_all_right                      TYPE string.
+    DATA: lv_fieldname_changes              TYPE string.
+    DATA: lv_keyflag_changes                TYPE string.
+    DATA: lv_rollname_changes               TYPE string.
+    DATA: lv_datalength_changes             TYPE string.
+    DATA: lv_datatype_changes               TYPE string.
+    DATA: lt_split                          TYPE STANDARD TABLE OF string.
+    DATA: ls_count_changes                  TYPE zif_ddic_analysis=>ty_changes.
+    DATA: lv_tabix                          TYPE i VALUE 1.
+    DATA: lv_skip_other_analysis            TYPE flag.
+    FIELD-SYMBOLS: <table_prod>             TYPE zif_ddic_analysis=>tty_dd03v.
+    FIELD-SYMBOLS: <table_dev>              TYPE zif_ddic_analysis=>tty_dd03v.
+    FIELD-SYMBOLS: <structure_prod>         TYPE dd03v.
+    FIELD-SYMBOLS: <structure_dev>          TYPE dd03v.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    ASSIGN is_dd03v-t_ddxxv_dev->* TO <table_dev>.
+    ASSIGN is_dd03v-t_ddxxv_prod->* TO <table_prod>.
+
+    CHECK <table_dev> IS NOT INITIAL AND <table_prod> IS NOT INITIAL.
+    LOOP AT <table_dev> ASSIGNING <structure_dev>.
+      READ TABLE <table_prod> ASSIGNING <structure_prod> INDEX lv_tabix.
+*      IF sy-subrc EQ 0. >>> Do not control whether the register was found or not! Categoriser will control it.
+      me->_categorise_structure_risk( EXPORTING is_dev = <structure_dev>
+                                                is_prod = <structure_prod>
+                                                it_prod = <table_prod>
+                                      CHANGING  cv_all_rigth          = lv_all_right
+                                                cv_fieldname_changes  = lv_fieldname_changes
+                                                cv_keyflag_changes    = lv_keyflag_changes
+                                                cv_rollname_changes   = lv_rollname_changes
+                                                cv_datatype_changes   = lv_datatype_changes
+                                                cv_datalength_changes = lv_datalength_changes ).
+
+*     If everything went all right up to the point of the total length of the Production structure:
+      IF lv_tabix EQ is_dd03v-v_lines_prod AND lv_all_right IS INITIAL.
+        lv_all_right_up_to_this_point = abap_true.
+
+      ENDIF.
+      ADD 1 TO lv_tabix.
+    ENDLOOP.
+
+*   First check: No changes in the middle of structure
+    IF lv_all_right_up_to_this_point EQ abap_true.
+*     Among Low Risk Levels, make a difference:
+      IF is_dd03v-v_lines_prod EQ is_dd03v-v_lines_dev.
+        cs_analysis-risk_assess = 'DEV = PROD: STRUCTRURES are EQUAL'.
+        cs_analysis-risk_level  = 'Low Risk'.
+      ELSEIF is_dd03v-v_lines_prod LT is_dd03v-v_lines_dev.
+        lv_all_right = is_dd03v-v_lines_dev - is_dd03v-v_lines_prod.
+        CONCATENATE 'DEV <> PROD:' lv_all_right 'field(s) ADDED at the END' INTO cs_analysis-risk_assess SEPARATED BY space.
+        cs_analysis-risk_level  = 'Low Risk'.
+      ELSEIF is_dd03v-v_lines_prod GT is_dd03v-v_lines_dev.
+        lv_all_right = is_dd03v-v_lines_prod - is_dd03v-v_lines_dev.
+        CONCATENATE 'DEV <> PROD:' lv_all_right 'field(s) SUBTRATED from the END' INTO cs_analysis-risk_assess SEPARATED BY space.
+        cs_analysis-risk_level  = 'High Risk'.
+      ENDIF.
+    ELSE.
+*   Second check: There are changes in the middle of structure >>> HIGH RISK
+      cs_analysis-risk_assess = 'DEV <> PROD: Changes MIDDLE struct * '.
+      cs_analysis-risk_level  = 'High Risk'.
+      IF lv_fieldname_changes IS NOT INITIAL.
+**        ls_count_changes = me->_split_and_count( lv_fieldname_changes ).
+**        lv_fieldname_changes = ls_count_changes-lowers.
+        CONCATENATE cs_analysis-risk_assess '/Field pos. = ' lv_fieldname_changes INTO cs_analysis-risk_assess SEPARATED BY space.
+      ENDIF.
+      IF lv_keyflag_changes IS NOT INITIAL.
+        ls_count_changes = me->_split_and_count( lv_keyflag_changes ).
+        lv_keyflag_changes = ls_count_changes-lowers.
+        CONCATENATE cs_analysis-risk_assess '/Key Fields = ' lv_keyflag_changes INTO cs_analysis-risk_assess SEPARATED BY space.
+      ENDIF.
+      IF lv_rollname_changes IS NOT INITIAL.
+        ls_count_changes = me->_split_and_count( lv_rollname_changes ).
+*        lv_rollname_changes = ( ls_count_changes-lowers / 2 ).
+        lv_rollname_changes = ls_count_changes-lowers.
+        CONCATENATE cs_analysis-risk_assess '/Data Elements = ' lv_rollname_changes INTO cs_analysis-risk_assess SEPARATED BY space.
+      ENDIF.
+      IF lv_datatype_changes IS NOT INITIAL.
+        ls_count_changes = me->_split_and_count( lv_datatype_changes ).
+        lv_datatype_changes = ls_count_changes-lowers.
+        CONCATENATE cs_analysis-risk_assess '/Types = ' lv_datatype_changes INTO cs_analysis-risk_assess SEPARATED BY space.
+      ENDIF.
+      IF lv_datalength_changes IS NOT INITIAL.
+        ls_count_changes = me->_split_and_count( lv_datalength_changes ).
+        CONCATENATE cs_analysis-risk_assess '/Length = (' INTO cs_analysis-risk_assess SEPARATED BY space.
+        IF ls_count_changes-lowers NE 0.
+          lv_datalength_changes = ls_count_changes-lowers.
+          CONCATENATE cs_analysis-risk_assess 'Decrease =' lv_datalength_changes INTO cs_analysis-risk_assess SEPARATED BY space.
+        ENDIF.
+        IF ls_count_changes-greaters NE 0.
+          lv_datalength_changes = ls_count_changes-greaters.
+          CONCATENATE cs_analysis-risk_assess 'Increase =' lv_datalength_changes INTO cs_analysis-risk_assess SEPARATED BY space.
+        ENDIF.
+        CONCATENATE cs_analysis-risk_assess ')' INTO cs_analysis-risk_assess SEPARATED BY space.
+
+      ENDIF.
+    ENDIF.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CHECK_TABLETYPE_SORT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IS_DD40V                       TYPE        ZIF_DDIC_ANALYSIS=>TY_DDXXV
+* | [<-->] CS_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _check_tabletype_sort.
+    FIELD-SYMBOLS: <table_prod> TYPE zif_ddic_analysis=>tty_dd40v.
+    FIELD-SYMBOLS: <table_dev> TYPE zif_ddic_analysis=>tty_dd40v.
+    FIELD-SYMBOLS: <structure_prod> TYPE dd40v.
+    FIELD-SYMBOLS: <structure_dev> TYPE dd40v.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    ASSIGN is_dd40v-t_ddxxv_dev->* TO <table_dev>.
+    ASSIGN is_dd40v-t_ddxxv_prod->* TO <table_prod>.
+
+    READ TABLE <table_prod> ASSIGNING <structure_prod> INDEX 1.
+    READ TABLE <table_dev> ASSIGNING <structure_dev> INDEX 1.
+
+    IF <structure_prod>-ctdatatype NE <structure_dev>-ctdatatype OR
+       <structure_prod>-ctdatatype NE <structure_dev>-ctdatatype.
+      cs_analysis-risk_assess = 'DEV <> PROD: TYPE&LENGTH NOK'.
+      cs_analysis-risk_level  = 'High Risk'.
+
+    ELSE.
+      IF <structure_prod>-rowtype  NE <structure_dev>-rowtype.
+        cs_analysis-risk_assess = 'DEV <> PROD: ROWTYPE different'.
+        cs_analysis-risk_level  = 'Low Risk'.
+      ELSE.
+        IF <structure_prod>-ttypkind  NE <structure_dev>-ttypkind.
+          cs_analysis-risk_assess = 'DEV <> PROD: TTYPKIND different'.
+          cs_analysis-risk_level  = 'Low Risk'.
+        ELSE.
+          cs_analysis-risk_assess = 'DEV = PROD: TYPE&LENGTH OK'.
+          cs_analysis-risk_level  = 'Low Risk'.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_CHECK_USE_REFERENCES
+* +-------------------------------------------------------------------------------------------------+
+* | [<-->] CT_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TTY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _check_use_references.
+    DATA: ls_tvarvc TYPE tvarvc.
+    DATA: lv_lines  TYPE i.
+    FIELD-SYMBOLS: <lfs_s_analysis> TYPE zif_ddic_analysis=>ty_output.
+    FIELD-SYMBOLS: <lfs_s_ddic_component> TYPE zif_ddic_analysis=>ty_ddic.
+    FIELD-SYMBOLS: <lfs_t_ddic_component> TYPE ANY TABLE.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    SELECT SINGLE * FROM tvarvc INTO ls_tvarvc WHERE name = 'Z_DDIC_ANALYSIS_WHERE_USE_REF'.
+    CHECK sy-subrc EQ 0.
+    LOOP AT ct_analysis ASSIGNING <lfs_s_analysis>.
+      READ TABLE me->t_ddic_data[] ASSIGNING <lfs_s_ddic_component> WITH KEY trkorr = <lfs_s_analysis>-trkorr
+                                                                       obj_name = <lfs_s_analysis>-obj_name.
+      IF sy-subrc EQ 0.
+        ASSIGN COMPONENT 'WHERE_USE_REF' OF STRUCTURE <lfs_s_ddic_component> TO <lfs_t_ddic_component>.
+        CHECK <lfs_t_ddic_component> IS ASSIGNED.
+        DESCRIBE TABLE <lfs_t_ddic_component> LINES lv_lines.
+        IF lv_lines GT ls_tvarvc-low.
+          IF <lfs_s_analysis>-risk_level IS INITIAL.
+            <lfs_s_analysis>-risk_assess = 'WARNING: High number of Use-References in Production'.
+            <lfs_s_analysis>-risk_level  = 'Low Risk ***'.
+
+          ELSEIF <lfs_s_analysis>-risk_level NS '***'.
+            CONCATENATE <lfs_s_analysis>-risk_level '***' INTO <lfs_s_analysis>-risk_level SEPARATED BY space.
+
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_COMPOSE_CONDITIONS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_FIELD                       TYPE        STRING
+* | [--->] IT_TRKORR                      TYPE        ZIF_DDIC_ANALYSIS=>TTY_TRKORR
+* | [<-->] CT_OPTIONS                     TYPE        ZIF_DDIC_ANALYSIS=>TTY_CLAUSE
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _compose_conditions.
+    DATA: lt_conditions     TYPE STANDARD TABLE OF hrcond WITH DEFAULT KEY.
+    DATA: ls_conditions     TYPE hrcond.
+    DATA: ls_trkorr         TYPE zif_ddic_analysis=>ty_trkorr.
+    DATA: lt_options        TYPE STANDARD TABLE OF rfc_db_opt.
+    DATA: ls_options        TYPE rfc_db_opt.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+
+    LOOP AT it_trkorr INTO ls_trkorr.
+      ls_conditions-field = iv_field.
+      ls_conditions-opera = zif_ddic_analysis=>c_option_eq.
+      ls_conditions-low   = ls_trkorr-trkorr.
+      APPEND ls_conditions TO lt_conditions.
+
+    ENDLOOP.
+
+    CALL FUNCTION 'RH_DYNAMIC_WHERE_BUILD'
+      EXPORTING
+        dbtable         = space " can be empty
+      TABLES
+        condtab         = lt_conditions[]
+        where_clause    = lt_options[]
+      EXCEPTIONS
+        empty_condtab   = 1
+        no_db_field     = 2
+        unknown_db      = 3
+        wrong_condition = 4
+        OTHERS          = 5.
+    IF sy-subrc NE 0.
+      "Continue
+
+    ENDIF.
+
+    ls_options-text = '('.
+    INSERT ls_options INTO lt_options[] INDEX 1.
+    ls_options-text = ')'.
+    APPEND ls_options TO lt_options[].
+
+    APPEND LINES OF lt_options[] TO ct_options[].
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_COMPOSE_RANGE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_TYP                         TYPE        STRING
+* | [<-()] RR_TYP                         TYPE        ZIF_DDIC_ANALYSIS=>RTY_TYP
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _compose_range.
+    CONSTANTS: lc_sign   TYPE char1 VALUE 'I'.
+    CONSTANTS: lc_option TYPE char2 VALUE 'CP'.
+    DATA: ls_typ TYPE LINE OF zif_ddic_analysis=>rty_typ.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    ls_typ-sign   = lc_sign.
+    ls_typ-option = lc_option.
+    CASE iv_typ.
+      WHEN 'Tables'.
+        ls_typ-low = 'TABL'.
+        APPEND ls_typ TO rr_typ.
+        ls_typ-low = 'TABD'.
+        APPEND ls_typ TO rr_typ.
+        ls_typ-low = 'TABT'.
+        APPEND ls_typ TO rr_typ.
+
+      WHEN 'Types'.
+        ls_typ-low = 'TTYP'.
+        APPEND ls_typ TO rr_typ.
+        ls_typ-low = 'TTYD'.
+        APPEND ls_typ TO rr_typ.
+
+    ENDCASE.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_FETCH_E070_DATA
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IT_TRKORR                      TYPE        ZIF_DDIC_ANALYSIS=>TTY_TRKORR
+* | [<-()] RT_E070                        TYPE        ZIF_DDIC_ANALYSIS=>TTY_E070
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _fetch_e070_data.
+    DATA: lv_separator      TYPE string VALUE '|'.
+    DATA: lt_options        TYPE STANDARD TABLE OF rfc_db_opt.
+    DATA: ls_options        TYPE rfc_db_opt.
+    DATA: lt_fields         TYPE STANDARD TABLE OF rfc_db_fld.
+    DATA: ls_fields         TYPE rfc_db_fld.
+    DATA: ls_trkorr         TYPE zif_ddic_analysis=>ty_trkorr.
+    DATA: lv_field          TYPE string.
+    DATA: lv_destination    TYPE string.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+
+*   Compose the conditions clause: First time, for TRKORR. Second for STRKORR
+    DO 2 TIMES.
+      CASE sy-index.
+        WHEN 1.
+          lv_field = 'TRKORR'.
+        WHEN 2.
+          lv_field = 'STRKORR'.
+      ENDCASE.
+      me->_compose_conditions( EXPORTING iv_field   = lv_field
+                                         it_trkorr  = it_trkorr[]
+                               CHANGING  ct_options = lt_options[] ).
+      CHECK sy-index NE 2.
+      ls_options-text = 'OR'.
+      APPEND ls_options TO lt_options[].
+
+    ENDDO.
+*   Compose the destination from TR:
+    READ TABLE it_trkorr INTO ls_trkorr INDEX 1.
+    lv_destination = me->_fetch_rfc_dest_from_tr( ls_trkorr-trkorr ).
+*   Fetch data from E070: Look for Main TRs/TOCs
+    CALL FUNCTION 'RFC_READ_TABLE' DESTINATION lv_destination
+      EXPORTING
+        query_table = 'E070'
+*       DELIMITER   = ' '
+*       NO_DATA     = ' '
+*       ROWSKIPS    = 0
+*       ROWCOUNT    = 0
+      TABLES
+        options     = lt_options[]
+*       fields      =
+        data        = rt_e070[]
+*     EXCEPTIONS
+*       TABLE_NOT_AVAILABLE        = 1
+*       TABLE_WITHOUT_DATA         = 2
+*       OPTION_NOT_VALID           = 3
+*       FIELD_NOT_VALID            = 4
+*       NOT_AUTHORIZED             = 5
+*       DATA_BUFFER_EXCEEDED       = 6
+*       OTHERS      = 7
+      .
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ENDIF.
+
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_FETCH_E071_DATA
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IT_TRKORR                      TYPE        ZIF_DDIC_ANALYSIS=>TTY_TRKORR
+* | [<-()] RT_E071                        TYPE        ZIF_DDIC_ANALYSIS=>TTY_E071
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _fetch_e071_data.
+    DATA: lt_e071 TYPE zif_ddic_analysis=>tty_e071.
+    DATA: ls_trkorr TYPE zif_ddic_analysis=>ty_trkorr.
+    DATA: lv_rfc_dest TYPE rfcdes-rfcdest.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    LOOP AT it_trkorr INTO ls_trkorr.
+      lv_rfc_dest = me->_fetch_rfc_dest_from_tr( ls_trkorr-trkorr ).
+      CALL FUNCTION 'COMP_REPOS_GET_REQOBJ' DESTINATION lv_rfc_dest
+        EXPORTING
+          iv_trkorr        = ls_trkorr-trkorr
+*         IV_DEST          =
+        TABLES
+          et_obj           = lt_e071
+*         ET_E071K         =
+*         ET_OBJ_LOCAL     =
+        EXCEPTIONS
+          no_request       = 1
+          no_authorization = 2
+          OTHERS           = 3.
+      IF sy-subrc <> 0.
+* Implement suitable error handling here
+      ENDIF.
+
+      APPEND LINES OF lt_e071 TO rt_e071.
+      CLEAR lt_e071.
+
+    ENDLOOP.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_FETCH_HPALM_DATA
+* +-------------------------------------------------------------------------------------------------+
+* | [<-()] RT_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TTY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _fetch_hpalm_data.
+    DATA: lt_hpalm_data    TYPE STANDARD TABLE OF zxx_hpalm_data.
+    DATA: ls_hpalm_data    TYPE zxx_hpalm_data.
+    DATA: lt_tr_def_cr     TYPE STANDARD TABLE OF zxx_tr_def_cr.
+    DATA: ls_tr_def_cr     TYPE zxx_tr_def_cr.
+    DATA: lt_ddic_data     TYPE zif_ddic_analysis=>tty_ddic.
+    DATA: ls_ddic_data     TYPE zif_ddic_analysis=>ty_ddic.
+    DATA: ls_analysis      TYPE zif_ddic_analysis=>ty_output.
+    DATA: ls_e071          TYPE e071.
+    DATA: lv_risk_assess   TYPE string VALUE 'Out of Scope'.
+    DATA: lv_risk_level    TYPE string VALUE '---'.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+
+    LOOP AT me->t_ddic_data[] INTO ls_ddic_data.
+*    LOOP AT me->t_e071[] INTO ls_e071.
+      ls_analysis-trkorr      = ls_ddic_data-trkorr.
+*          ls_analysis-package = ls_ddic_data-package.
+      ls_analysis-r3_sid      =  ls_ddic_data-trkorr(3).
+      REPLACE ALL OCCURRENCES OF 'D' IN ls_analysis-r3_sid WITH 'P'.
+      READ TABLE me->t_e071[] INTO ls_e071 WITH KEY trkorr = ls_ddic_data-trkorr
+*                                                    object = ls_ddic_data-object
+                                                    obj_name = ls_ddic_data-obj_name.
+      IF sy-subrc EQ 0.
+        ls_analysis-pgmid       = ls_e071-pgmid.
+      ENDIF.
+      ls_analysis-object      = ls_ddic_data-object.
+      ls_analysis-obj_name    = ls_ddic_data-obj_name.
+      CASE ls_analysis-object.
+        WHEN 'DOMD' OR 'DOMA'.
+          ls_analysis-obj_type = 'Domain'.
+        WHEN 'DTED' OR 'DTEL'.
+          ls_analysis-obj_type = 'Data Element'.
+        WHEN 'TABD' OR 'TABL' OR 'TABT'.
+          IF ls_ddic_data-entries_in_prod LT 0.
+            ls_analysis-obj_type = 'Structure'.
+          ELSE.
+            ls_analysis-obj_type = 'Table'.
+
+          ENDIF.
+        WHEN 'TTYP' OR 'TTYD'.
+          ls_analysis-obj_type = 'Table Type'.
+        WHEN 'INDX'.
+          ls_analysis-obj_type = 'Index'.
+        WHEN 'TOBJ'.
+          ls_analysis-obj_type = 'Maintenance and Transport Object'.
+        WHEN 'ENQD'.
+          ls_analysis-obj_type = 'Lock Object Definition'.
+        WHEN 'TABU'.
+          ls_analysis-obj_type = 'Table Contents'.
+
+      ENDCASE.
+
+      APPEND ls_analysis TO rt_analysis[].
+      CLEAR: ls_analysis, ls_ddic_data.
+    ENDLOOP.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_FETCH_PACKAGE_DATA
+* +-------------------------------------------------------------------------------------------------+
+* | [<-->] CT_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TTY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _fetch_package_data.
+    DATA: lt_tm_req     TYPE STANDARD TABLE OF /rtc/tm_req.
+    DATA: ls_tm_req     TYPE /rtc/tm_req.
+    DATA: ls_ddic_data  TYPE zif_ddic_analysis=>ty_ddic.
+    FIELD-SYMBOLS: <lfs_s_analysis> TYPE zif_ddic_analysis=>ty_output.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    SELECT *
+      FROM /rtc/tm_req
+      INTO TABLE lt_tm_req[]
+      FOR ALL ENTRIES IN me->t_analysis[]
+      WHERE trkorr EQ me->t_analysis-trkorr.
+*   Get a copy of input to be able to modify it:
+    LOOP AT ct_analysis[] ASSIGNING <lfs_s_analysis>.
+      READ TABLE lt_tm_req[] INTO ls_tm_req WITH KEY trkorr = <lfs_s_analysis>-trkorr.
+      IF sy-subrc EQ 0 AND ls_tm_req-tm_package IS NOT INITIAL.
+        <lfs_s_analysis>-package = ls_tm_req-tm_package.
+      ELSE.
+        <lfs_s_analysis>-package = 'N/A'.
+
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_FETCH_RFC_DEST_FROM_TR
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_TRKORR                      TYPE        TRKORR
+* | [<-()] RV_RFCDEST                     TYPE        RFCDEST
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _fetch_rfc_dest_from_tr.
+    DATA: ls_rfcdest TYPE tvarvc.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    READ TABLE me->t_rfcdest[] INTO ls_rfcdest WITH KEY low(3) = iv_trkorr(3).
+    IF sy-subrc EQ 0.
+      rv_rfcdest = ls_rfcdest-low.
+
+    ENDIF.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_FORMAT_LENGTH
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_LENG                        TYPE        ANY
+* | [<-()] RS_FORMAT                      TYPE        ZIF_DDIC_ANALYSIS=>TY_FORMAT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _format_length.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    rs_format-leng_str = iv_leng.
+    SHIFT rs_format-leng_str LEFT DELETING LEADING '0'.
+    rs_format-leng_int = rs_format-leng_str.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_GET_DDIC_OBJECT
+* +-------------------------------------------------------------------------------------------------+
+* | [<-()] RR_DDIC                        TYPE        ZIF_DDIC_ANALYSIS=>RTY_DDIC
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _get_ddic_object.
+    CONSTANTS: lc_sign   TYPE char1 VALUE 'I'.
+    CONSTANTS: lc_option TYPE char2 VALUE 'CP'.
+    DATA: lt_tvarvc TYPE STANDARD TABLE OF tvarvc.
+    DATA: ls_tvarvc TYPE tvarvc.
+    DATA: ls_ddic   TYPE LINE OF zif_ddic_analysis=>rty_ddic.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+*   Using same supported TRs as report ZZXX_REQ_CHECKLIST:
+    SELECT * FROM tvarvc
+    INTO TABLE lt_tvarvc
+      WHERE name EQ  'Z_CR4966_DDIC_ELEMENTS'.
+    IF sy-subrc EQ 0.
+*     Start to populate range with accepted DDIC objects:
+      ls_ddic-sign   = lc_sign.
+      ls_ddic-option = lc_option.
+      LOOP AT lt_tvarvc INTO ls_tvarvc.
+        ls_ddic-low = ls_tvarvc-low.
+        APPEND ls_ddic TO rr_ddic.
+        CLEAR ls_ddic-low.
+
+      ENDLOOP.
+    ENDIF.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_GET_DDXXV_DETAILS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IS_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TY_OUTPUT
+* | [<---] ET_ASSIGNED                    TYPE        ZIF_DDIC_ANALYSIS=>TY_DDXXV
+* | [<---] EV_TYP                         TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _get_ddxxv_details.
+    DATA: lv_data_obj_typ TYPE string.
+    DATA: lv_data_fs_typ TYPE string.
+    FIELD-SYMBOLS: <lfs_s_ddic_component> TYPE zif_ddic_analysis=>ty_ddic.
+    FIELD-SYMBOLS: <lfs_t_analysis> TYPE any.
+    FIELD-SYMBOLS: <lfs_t_ddxxv>    TYPE REF TO data.
+    DATA: lr_tables TYPE RANGE OF string.
+    DATA: lr_types  TYPE RANGE OF string.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    lr_tables = me->_compose_range( 'Tables' ).
+    lr_types  = me->_compose_range( 'Types' ).
+    READ TABLE me->t_ddic_data[] ASSIGNING <lfs_s_ddic_component> WITH KEY trkorr   = is_analysis-trkorr
+                                                                           obj_name = is_analysis-obj_name.
+    IF sy-subrc EQ 0.
+      CHECK <lfs_s_ddic_component>-object IN lr_tables OR <lfs_s_ddic_component>-object IN lr_types.
+      DO 2 TIMES.
+        IF <lfs_s_ddic_component>-object IN lr_tables.
+          lv_data_obj_typ = 'zif_ddic_analysis=>tty_dd03v'.
+          CASE sy-index.
+            WHEN 1.
+              ev_typ = 'PROD_DD03V'.
+            WHEN 2.
+              ev_typ = 'DEV_DD03V'.
+
+          ENDCASE.
+        ELSEIF <lfs_s_ddic_component>-object IN lr_types.
+          lv_data_obj_typ = 'zif_ddic_analysis=>tty_dd40v'.
+          CASE sy-index.
+            WHEN 1.
+              ev_typ = 'PROD_DD40V'.
+            WHEN 2.
+              ev_typ = 'DEV_DD40V'.
+
+          ENDCASE.
+        ENDIF.
+        CASE sy-index.
+          WHEN 1.
+            CREATE DATA et_assigned-t_ddxxv_prod TYPE (lv_data_obj_typ).
+            ASSIGN et_assigned-t_ddxxv_prod TO <lfs_t_ddxxv>.
+          WHEN 2.
+            CREATE DATA et_assigned-t_ddxxv_dev TYPE (lv_data_obj_typ).
+            ASSIGN et_assigned-t_ddxxv_dev TO <lfs_t_ddxxv>.
+
+        ENDCASE.
+        ASSIGN COMPONENT ev_typ OF STRUCTURE <lfs_s_ddic_component> TO <lfs_t_analysis>.
+        CHECK <lfs_t_analysis> IS ASSIGNED.
+        GET REFERENCE OF <lfs_t_analysis> INTO <lfs_t_ddxxv>.
+        UNASSIGN: <lfs_t_ddxxv>, <lfs_t_analysis>.
+
+      ENDDO.
+    ENDIF.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_GET_DESTINATIONS
+* +-------------------------------------------------------------------------------------------------+
+* | [<-()] RT_RFCDEST                     TYPE        ZIF_DDIC_ANALYSIS=>TTY_TVARVC
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _get_destinations.
+*   Using same destinations as report ZZXX_REQ_CHECKLIST:
+    SELECT * FROM tvarvc
+    INTO TABLE rt_rfcdest
+      WHERE name EQ  'ZCRM_DEST' OR
+            name EQ  'ZCAR_DEST' OR
+            name EQ  'ZCAP_DEST' OR
+            name EQ  'ZUAD_DEST' OR
+            name EQ  'ZUAR_DEST' OR
+            name EQ  'ZUAP_DEST' OR
+            name EQ  'ZMAD_DEST' OR
+            name EQ  'ZMAR_DEST' OR
+            name EQ  'ZMAP_DEST' OR
+            name EQ  'ZBAD_DEST' OR
+            name EQ  'ZBAR_DEST' OR
+            name EQ  'ZBAP_DEST' OR
+            name EQ  'ZHAP_DEST' OR
+            name EQ  'ZHAR_DEST' OR
+            name EQ  'ZHAD_DEST' OR
+            name EQ  'ZPAP_DEST' OR
+            name EQ  'ZPAD_DEST'.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_GET_RELATIONSHIPS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IT_TRKORR                      TYPE        ZIF_DDIC_ANALYSIS=>TTY_TRKORR
+* | [<-()] RT_TRKORR                      TYPE        ZIF_DDIC_ANALYSIS=>TTY_TRKORR
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _get_relationships.
+    DATA: lt_trkorr        TYPE zif_ddic_analysis=>tty_trkorr.
+    DATA: ls_trkorr        TYPE zif_ddic_analysis=>ty_trkorr.
+    DATA: lt_e070          TYPE zif_ddic_analysis=>tty_e070.
+    DATA: ls_e070          TYPE e070.
+    DATA: ls_e070_tasks    TYPE e070.
+    DATA: ls_tvarvc        TYPE tvarvc.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+
+    LOOP AT me->t_supported[] INTO ls_tvarvc.
+*     Get a copy of all the TRs provided:
+      lt_trkorr[] = it_trkorr[].
+*     Stick to those that we are currently handling to divert them towards correct RFC connections:
+      DELETE lt_trkorr[] WHERE trkorr(3) NE ls_tvarvc-low.
+      CHECK lt_trkorr[] IS NOT INITIAL.
+*     Get E070 information from source system:
+      lt_e070[] = me->_fetch_e070_data( lt_trkorr[] ).
+*     Once filtered, save:
+      APPEND LINES OF lt_e070[] TO me->t_e070[].
+
+    ENDLOOP.
+    LOOP AT me->t_e070[] INTO ls_e070.
+      CASE ls_e070-trfunction.
+        WHEN 'S'.
+          CONTINUE.
+
+        WHEN OTHERS.
+*         If we are not messing with a Sub-Task, check if TR/TOC has been released:
+          IF ls_e070-trstatus NE 'R'. "Released
+            lt_e070[] = me->t_e070[].
+            DELETE lt_e070[] WHERE strkorr NE ls_e070-trkorr.
+*           In case not, add all its Sub-Tasks, which will hold the objects:
+            LOOP AT lt_e070[] INTO ls_e070_tasks.
+              ls_trkorr-trkorr = ls_e070_tasks-trkorr.
+              APPEND ls_trkorr TO lt_trkorr[].
+              CLEAR ls_trkorr.
+
+            ENDLOOP.
+          ELSE.
+*           If released, just add TR/TOC:
+            ls_trkorr-trkorr = ls_e070-trkorr.
+            APPEND ls_trkorr TO lt_trkorr[].
+            CLEAR ls_trkorr.
+
+          ENDIF.
+
+      ENDCASE.
+
+
+    ENDLOOP.
+
+    SORT lt_trkorr[] BY trkorr.
+    DELETE ADJACENT DUPLICATES FROM lt_trkorr[] COMPARING trkorr.
+    rt_trkorr[] = lt_trkorr[].
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_GET_SUPPORTED_TRS
+* +-------------------------------------------------------------------------------------------------+
+* | [<-()] RT_SUPPORT                     TYPE        ZIF_DDIC_ANALYSIS=>TTY_TVARVC
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _get_supported_trs.
+*   Using same supported TRs as report ZZXX_REQ_CHECKLIST:
+    SELECT * FROM tvarvc
+    INTO TABLE rt_support
+      WHERE name EQ  'ZCRM_TR'   OR
+            name EQ  'ZUAD_TR'   OR
+            name EQ  'ZMAD_TR'   OR
+            name EQ  'ZBAD_TR'   OR
+            name EQ  'ZHAD_TR'   OR
+            name EQ  'ZPAD_TR'.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_GET_TRS
+* +-------------------------------------------------------------------------------------------------+
+* | [<-()] RT_TRKORR                      TYPE        ZIF_DDIC_ANALYSIS=>TTY_TRKORR
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _get_trs.
+    DATA: ls_trkorr TYPE trkorr.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    LOOP AT s_trkorr INTO ls_trkorr.
+      APPEND ls_trkorr+3 TO rt_trkorr[].
+
+    ENDLOOP.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_LOOK_AT_TESTER
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_PATTERN                     TYPE        STRING
+* | [--->] IV_TESTER                      TYPE        STRING
+* | [<-()] RV_RESULT                      TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _look_at_tester.
+    DATA: lt_results                TYPE match_result_tab.
+    DATA: lv_lines                  TYPE i.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+*   Determine how many changes or new indexes there are in tr/toc:
+    FIND ALL OCCURRENCES OF iv_pattern IN iv_tester RESULTS lt_results[].
+    DESCRIBE TABLE lt_results[] LINES lv_lines.
+*   Convert result ot string:
+    rv_result = CONV string( lv_lines ).
+    CONDENSE rv_result NO-GAPS.
+
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_PULL_RISK
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_REQUID                      TYPE        ANY
+* | [<-()] RV_DDIC_RISK                   TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD _pull_risk.
+    DATA: lt_hpalm_data     TYPE STANDARD TABLE OF zxx_hpalm_data.
+    DATA: ls_hpalm_data     TYPE zxx_hpalm_data.
+    DATA: lt_tr_def_cr      TYPE STANDARD TABLE OF zxx_tr_def_cr.
+    DATA: ls_tr_def_cr      TYPE zxx_tr_def_cr.
+    DATA: lt_analysis       TYPE zif_ddic_analysis=>tty_output.
+    DATA: lt_analysis_aux   TYPE zif_ddic_analysis=>tty_output.
+    DATA: ls_analysis       TYPE zif_ddic_analysis=>ty_output.
+    DATA: lr_trkorr         TYPE zif_ddic_analysis=>rty_trkorr.
+    DATA: ls_trkorr         TYPE LINE OF zif_ddic_analysis=>rty_trkorr.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+
+*   Get a copy of the table with relationship TR vs REQUID:
+    lt_tr_def_cr[] = me->t_tr_def_cr[].
+*   Stick only to the current Req_id demanded:
+    DELETE lt_tr_def_cr[] WHERE zreq_id NE iv_requid.
+*   Create a range with all those TRs identified:
+    ls_trkorr-sign    = 'I'.
+    ls_trkorr-option  = 'EQ'.
+    LOOP AT lt_tr_def_cr[] INTO ls_tr_def_cr.
+      ls_trkorr-low = ls_tr_def_cr-trkorr.
+      APPEND ls_trkorr TO lr_trkorr[].
+
+    ENDLOOP.
+*   Stick, within the analysis, to only that set of TRs identified:
+    lt_analysis[] = me->t_analysis[].
+    DELETE lt_analysis[] WHERE trkorr NOT IN lr_trkorr.
+    IF lr_trkorr[] IS NOT INITIAL.
+      IF lt_analysis[] IS NOT INITIAL.
+*     Look for "Very High Risk" changes. If found, categorise and leave:
+        lt_analysis_aux[] = lt_analysis[].
+        DELETE lt_analysis_aux[] WHERE risk_level NS 'Very'.
+        IF lt_analysis_aux[] IS NOT INITIAL.
+          rv_ddic_risk = 'Very High DDIC Risk'.
+          EXIT.
+
+        ENDIF.
+*     Look for "Very High Risk" changes. If found, categorise and leave:
+        lt_analysis_aux[] = lt_analysis[].
+        DELETE lt_analysis_aux[] WHERE risk_level CS 'Very'.
+        DELETE lt_analysis_aux[] WHERE risk_level CS 'Low'.
+        IF lt_analysis_aux[] IS NOT INITIAL.
+          rv_ddic_risk = 'High DDIC Risk'.
+          EXIT.
+
+        ENDIF.
+*     Look for "Very High Risk" changes. If found, categorise and leave:
+        lt_analysis_aux[] = lt_analysis[].
+        DELETE lt_analysis_aux[] WHERE risk_level NS 'Low'.
+        IF lt_analysis_aux[] IS NOT INITIAL.
+          rv_ddic_risk = 'Low DDIC Risk'.
+          EXIT.
+
+        ENDIF.
+*   If after all we still did not spot any DDIC objects:
+      ELSE.
+        rv_ddic_risk = 'No DDIC Objects'.
+
+      ENDIF.
+    ELSE.
+        rv_ddic_risk = 'TR not linked yet!'.
+    ENDIF.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_REFINE_ADD_HPALM_DATA
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IT_DDIC_DATA                   TYPE        ZIF_DDIC_ANALYSIS=>TTY_DDIC
+* | [<-()] RT_ANALYSIS                    TYPE        ZIF_DDIC_ANALYSIS=>TTY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD _refine_add_hpalm_data.
+    DATA: ls_analysis               TYPE zif_ddic_analysis=>ty_output.
+    DATA: lt_tr_def_cr              TYPE STANDARD TABLE OF zxx_tr_def_cr.
+    DATA: ls_tr_def_cr              TYPE zxx_tr_def_cr.
+    DATA: lt_hpalm_data             TYPE STANDARD TABLE OF zxx_hpalm_data.
+    DATA: ls_hpalm_data             TYPE zxx_hpalm_data.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+*   Get the information related to hpalm:
+    SELECT *
+    FROM zxx_tr_def_cr
+    INTO TABLE lt_tr_def_cr
+    FOR ALL ENTRIES IN it_ddic_data[]
+    WHERE trkorr EQ it_ddic_data-trkorr.
+    IF sy-subrc EQ 0.
+      SELECT *
+      FROM zxx_hpalm_data
+      INTO TABLE lt_hpalm_data
+      FOR ALL ENTRIES IN lt_tr_def_cr[]
+      WHERE zreq_id EQ lt_tr_def_cr-zreq_id.
+      IF sy-subrc EQ 0.
+
+      ENDIF.
+    ENDIF.
+*   Complete the information related to HPALM in Output Analysis:
+    LOOP AT me->t_analysis[] INTO ls_analysis.
+      READ TABLE lt_tr_def_cr[] INTO ls_tr_def_cr WITH KEY trkorr = ls_analysis-trkorr.
+      IF sy-subrc EQ 0.
+        ls_analysis-req_id   = ls_tr_def_cr-zreq_id.
+      ENDIF.
+      READ TABLE lt_hpalm_data[] INTO ls_hpalm_data WITH KEY zreq_id = ls_analysis-req_id.
+      IF sy-subrc EQ 0.
+        ls_analysis-change   = ls_hpalm_data-zname.
+        ls_analysis-status   = ls_hpalm_data-zrel_status.
+
+      ENDIF.
+      APPEND ls_analysis TO rt_analysis[].
+      CLEAR ls_analysis.
+    ENDLOOP.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_REFINE_SORT_BY_RISK
+* +-------------------------------------------------------------------------------------------------+
+* | [<-()] RT_SORTED                      TYPE        ZIF_DDIC_ANALYSIS=>TTY_OUTPUT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD _refine_sort_by_risk.
+    DATA: lt_analysis_aux           TYPE zif_ddic_analysis=>tty_output.
+    DATA: lt_analysis_sorted        TYPE zif_ddic_analysis=>tty_output.
+    DATA: lv_criteria               TYPE string.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+
+*    Sort data by following criteria for the Risk Assessment:
+*          1. Very High Risk
+*          2. High Risk
+*          3. Low Risk
+
+    DO 4 TIMES.
+*     Define the criteria for the order:
+      CASE sy-index.
+        WHEN 1.
+          lv_criteria = 'Very High Risk'.
+        WHEN 2.
+          lv_criteria = 'High Risk'.
+        WHEN 3.
+          lv_criteria = 'Low Risk'.
+        WHEN 4.
+          lv_criteria = '---'.
+
+      ENDCASE.
+*     Get a copy of the whole Analysis:
+      lt_analysis_aux[] = me->t_analysis[].
+      DELETE lt_analysis_aux[] WHERE risk_level NS lv_criteria.
+      APPEND LINES OF lt_analysis_aux[] TO lt_analysis_sorted[].
+      IF sy-index EQ 2.
+        SORT lt_analysis_sorted[] BY risk_level trkorr object obj_name risk_assess  DESCENDING.
+        DELETE ADJACENT DUPLICATES FROM lt_analysis_sorted[].
+
+      ENDIF.
+      CLEAR lt_analysis_aux[].
+
+    ENDDO.
+
+    rt_sorted[] = lt_analysis_sorted[].
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_DDIC_ANALYSIS->_SPLIT_AND_COUNT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_CHANGES                     TYPE        STRING
+* | [<-()] RS_COUNT                       TYPE        ZIF_DDIC_ANALYSIS=>TY_CHANGES
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD: _split_and_count.
+    TYPES: BEGIN OF ty_split,
+             field TYPE char5,
+           END OF ty_split.
+    DATA: lt_split_lowers   TYPE STANDARD TABLE OF ty_split.
+    DATA: lt_split_greaters TYPE STANDARD TABLE OF ty_split.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    SPLIT iv_changes AT '*' INTO TABLE lt_split_lowers[].
+    SPLIT iv_changes AT '*' INTO TABLE lt_split_greaters[].
+    DELETE lt_split_lowers[]   WHERE field EQ '>'.
+    DELETE lt_split_greaters[] WHERE field EQ '<'.
+    DESCRIBE TABLE lt_split_lowers[]   LINES rs_count-lowers.
+    DESCRIBE TABLE lt_split_greaters[] LINES rs_count-greaters.
+
+  ENDMETHOD.
+ENDCLASS.
