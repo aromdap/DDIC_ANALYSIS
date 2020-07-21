@@ -1,0 +1,57 @@
+*&---------------------------------------------------------------------*
+*& Report  ZRPTT_SOP_DDIC
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+REPORT zrptt_sop_ddic.
+
+INCLUDE zrptt_sop_ddic_sel.
+INCLUDE zrptt_sop_ddic_cls.
+
+INITIALIZATION.
+lcl_initial=>load_scrn( ).
+
+START-OF-SELECTION.
+  DATA: o_analysis TYPE REF TO zcl_ddic_analysis.
+  DATA: o_output   TYPE REF TO lcl_share.
+  DATA: o_alv      TYPE REF TO lcl_show.
+  FIELD-SYMBOLS: <table>  TYPE STANDARD TABLE.
+
+* Start analysis:
+  CREATE OBJECT o_analysis.
+  IF o_analysis IS BOUND.
+    o_analysis->load_inputs( ir_trkorr  = s_trkorr[]
+                             ir_requid  = s_reqid[]
+                             ir_planned = s_datum[]
+                             ir_status  = s_status[] ).
+    o_analysis->start( ).
+
+  ENDIF.
+
+* Send email:
+  IF p_send IS NOT INITIAL.
+    CREATE OBJECT o_output EXPORTING io_in = o_analysis.
+    o_output->prepare_email( ).
+    o_output->send_email( ).
+
+  ENDIF.
+
+* Show analysis:
+  IF o_analysis->t_analysis[] IS NOT INITIAL.
+*   Prepare output to be shown on ALV screen:
+    ASSIGN o_analysis->t_ddic_data[] TO <gfs_t_ddic>.
+    ASSIGN o_analysis->t_analysis[]  TO <gfs_t_analysis>.
+    CREATE OBJECT o_alv EXPORTING io_in = o_analysis.
+    o_alv->display( ).
+  ELSE.
+    MESSAGE 'No DDIC objects found in request(s)!' TYPE 'E' DISPLAY LIKE 'S'.
+
+  ENDIF.
+
+
+
+
+
+END-OF-SELECTION.
