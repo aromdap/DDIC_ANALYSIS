@@ -1,0 +1,286 @@
+FUNCTION zfm_ddic_analysis.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     VALUE(IT_E071) TYPE  /RTC/LIB_T_E071_TAB
+*"     VALUE(IV_ANALYSIS) TYPE  CHAR10 DEFAULT 'DEEP'
+*"  EXPORTING
+*"     VALUE(ET_OBJ_COMPARATIONS) TYPE  ZTTY_DDIC_ANALYSIS
+*"----------------------------------------------------------------------
+  TYPES: BEGIN OF lty_dd03l,
+          tabname  TYPE string,
+          rollname TYPE string,
+          domname  TYPE string,
+          comptype TYPE string,
+         END OF lty_dd03l.
+
+  CONSTANTS: lc_e                              TYPE comptype VALUE 'E'.
+  CONSTANTS: lc_n                              TYPE comptype VALUE 'N'.
+  CONSTANTS: lc_s                              TYPE comptype VALUE 'S'.
+  CONSTANTS: lc_l                              TYPE comptype VALUE 'L'.
+  DATA: lt_e071_single                         TYPE STANDARD TABLE OF e071.
+  DATA: ls_e071_single                         TYPE e071.
+  DATA: ls_e071                                TYPE e071.
+  DATA: ls_vers_num                            TYPE vrsd.
+  DATA: ls_vers_obj                            TYPE svrs2_versionable_object.
+  FIELD-SYMBOLS: <lfs_s_obj_comparation>       TYPE svrs2_versionable_object.
+  FIELD-SYMBOLS: <lfs_v_tab_comparation>       TYPE ANY TABLE.
+  FIELD-SYMBOLS: <lfs_t_dyn_component>         TYPE ANY TABLE.
+  FIELD-SYMBOLS: <lfs_s_dyn_component>         TYPE any.
+  FIELD-SYMBOLS: <lfs_v_dyn_component>         TYPE any.
+  FIELD-SYMBOLS: <lfs_t_dyn_field>             TYPE ANY TABLE.
+  FIELD-SYMBOLS: <lfs_s_dyn_field>             TYPE any.
+  FIELD-SYMBOLS: <lfs_t_dyn_field_new>         TYPE ANY TABLE.
+  FIELD-SYMBOLS: <lfs_t_dyn_field_old>         TYPE ANY TABLE.
+  FIELD-SYMBOLS: <lfs_v_dyn_field>             TYPE any.
+  FIELD-SYMBOLS: <lfs_t_dyn_usage>             TYPE ztty_usage.
+  DATA: lt_num_entry                           TYPE STANDARD TABLE OF exp_tablrows.
+  DATA: ls_num_entry                           TYPE exp_tablrows.
+  FIELD-SYMBOLS: <lfs_s_obj_outcome>           TYPE any.
+  DATA: ls_obj_outcome                         TYPE zty_ddic_analysis.
+  DATA: lv_t_analysis                          TYPE string.
+  DATA: lv_dyn_comp                            TYPE string.
+  DATA: lv_dyn_new_old                         TYPE string.
+  DATA: lv_dyn_enclosed                        TYPE string.
+  DATA: lv_component_new                       TYPE i.
+  DATA: lv_component_old                       TYPE i.
+  DATA: lv_rfc_dest                            TYPE rfcdest.
+  DATA: lt_enclosed_object                     TYPE ztty_ddic_analysis.
+  DATA: ls_enclosed_object                     TYPE zty_ddic_analysis.
+  DATA: lt_idex                                TYPE STANDARD TABLE OF lty_dd03l.
+  DATA: ls_idex                                TYPE lty_dd03l.
+  DATA: lt_options                             TYPE STANDARD TABLE OF rfc_db_opt.
+  DATA: ls_options                             TYPE rfc_db_opt.
+  DATA: lt_fields                              TYPE STANDARD TABLE OF rfc_db_fld.
+  DATA: ls_fields                              TYPE rfc_db_fld.
+  DATA: lt_data                                TYPE STANDARD TABLE OF tab512.
+  DATA: ls_data                                TYPE tab512.
+
+
+  LOOP AT it_e071 INTO ls_e071.
+*>>>This case would be much useful if we enhance variant Z_CR4966_DDIC_ELEMENTS in SOP to have in HIGH value these equivalences!
+    CASE ls_e071-object.
+*     Domains:
+      WHEN 'DOMA' OR 'DOMD'.
+        ls_e071-object  = 'DOMD'.
+        lv_t_analysis   = 'DD01V'.
+
+*     Data Elements:
+      WHEN 'DTEL' OR 'DTED'.
+        ls_e071-object  = 'DTED'.
+        lv_t_analysis   = 'DD04V'.
+
+*     Tables and Structures:
+      WHEN 'TABL' OR 'TABD' OR 'TABT'.
+        ls_e071-object  = 'TABD'.
+        lv_t_analysis   = 'DD03V'.
+
+*     Table Types:
+      WHEN 'TTYP' OR 'TTYD'.
+        ls_e071-object  = 'TTYD'.
+        lv_t_analysis   = 'DD40V'.
+
+*     Indexes:
+      WHEN 'INDX'.
+        ls_e071-object  = 'INDX'.
+        lv_t_analysis   = 'DD12V'.
+
+      WHEN OTHERS.
+*       Categorisation has been completed: load data into exporting parameter
+        CLEAR ls_obj_outcome.
+        ls_obj_outcome-mandt    = sy-mandt.
+        ls_obj_outcome-trkorr   = ls_e071-trkorr.
+        ls_obj_outcome-object   = ls_e071-object.
+        ls_obj_outcome-obj_name = ls_e071-obj_name.
+        APPEND ls_obj_outcome TO et_obj_comparations.
+        CONTINUE.
+
+    ENDCASE.
+*   Bypass information to adapt to caller type:
+    ls_vers_num-objtype = ls_e071-object.
+    ls_vers_num-objname = ls_e071-obj_name.
+*   Get the latest version of object apart from the active current one [00000]:
+    CALL FUNCTION 'SVRS_FIND_VRSD_INFO'
+      EXPORTING
+        objtype   = ls_vers_num-objtype
+        objname   = ls_vers_num-objname
+        versno    = '00000'
+      IMPORTING
+        v_info    = ls_vers_num
+      EXCEPTIONS
+        not_found = 1
+        OTHERS    = 2.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ENDIF.
+
+*   Populate the outcome structure with common fields. Then assign for dynamic handling:
+    ls_obj_outcome-mandt    = sy-mandt.
+    ls_obj_outcome-trkorr   = ls_e071-trkorr.
+    ls_obj_outcome-object   = ls_e071-object.
+    ls_obj_outcome-obj_name = ls_e071-obj_name.
+    ASSIGN ls_obj_outcome TO <lfs_s_obj_outcome>.
+*   Do the data extraction operations twice: Once for the NEW version, then again for the OLD version
+    DO 2 TIMES.
+*     Bypass variables due to type conflicts:
+      ls_vers_obj-objtype = ls_e071-object.
+      ls_vers_obj-objname = ls_e071-obj_name.
+      ls_vers_obj-versno  = '00000'.
+*     Depending on DO LOOP interactions, choose version:
+      CASE sy-index.
+*       Newest version is the one in Development.
+        WHEN 1.
+          lv_dyn_new_old = 'DEV'. "For Development, do not provide destination (native system)
+***          CONCATENATE sy-sysid(2) 'D' 'CLNT' sy-mandt INTO ls_vers_obj-destination.
+*       Oldest version is the one in Production:
+        WHEN 2.
+          lv_dyn_new_old = 'PROD'.
+          CONCATENATE sy-sysid(2) 'P' 'CLNT' sy-mandt INTO ls_vers_obj-destination.
+
+      ENDCASE.
+*     Set a handler to the versions structure:
+      ASSIGN ls_vers_obj TO <lfs_s_obj_comparation>.
+      CALL FUNCTION 'SVRS_GET_VERSION'
+        CHANGING
+          object              = <lfs_s_obj_comparation>
+        EXCEPTIONS
+          communication_error = 1
+          system_error        = 2
+          no_version          = 3
+          version_unreadable  = 4
+          OTHERS              = 5.
+
+      IF sy-subrc <> 0.
+*      RAISE no_version.
+      ELSE.
+*       Assign the correct component of the comparation to the correct component of the outcome:
+        CONCATENATE ls_vers_obj-objtype lv_t_analysis INTO lv_dyn_comp SEPARATED BY '-'.
+        ASSIGN COMPONENT lv_dyn_comp OF STRUCTURE <lfs_s_obj_comparation> TO <lfs_v_tab_comparation>.
+        CONCATENATE lv_dyn_new_old lv_t_analysis INTO lv_dyn_new_old SEPARATED BY '_'.
+        ASSIGN COMPONENT lv_dyn_new_old OF STRUCTURE <lfs_s_obj_outcome> TO <lfs_v_dyn_component>.
+        <lfs_v_dyn_component> = <lfs_v_tab_comparation>.
+        IF sy-index EQ 1.
+          CONCATENATE '<lfs_s_obj_outcome>' lv_dyn_new_old INTO lv_dyn_enclosed SEPARATED BY '-'.
+
+        ENDIF.
+      ENDIF.
+      CLEAR: ls_vers_obj, lv_dyn_comp, lv_dyn_new_old.
+      UNASSIGN: <lfs_s_obj_comparation>, <lfs_v_tab_comparation>, <lfs_v_dyn_component>.
+
+    ENDDO.
+
+    IF iv_analysis EQ 'DEEP'.
+*   Get the where-is-used references of the object:
+      DATA: lt_references TYPE  akb_except_type.
+      DATA: lv_object  TYPE seu_obj.
+      DATA: ls_objects TYPE rsfind.
+      DATA: lt_objects TYPE TABLE OF rsfind.
+*   Bypass variables due to type conflicts:
+      lv_object         = ls_obj_outcome-object.
+      ls_objects-object = ls_obj_outcome-obj_name.
+      APPEND ls_objects TO lt_objects.
+      ASSIGN COMPONENT 'WHERE_USE_REF' OF STRUCTURE <lfs_s_obj_outcome> TO <lfs_t_dyn_usage>.
+      CALL FUNCTION 'RS_EU_CROSSREF'
+        EXPORTING
+          i_find_obj_cls               = lv_object
+          i_answer                     = abap_false
+          no_dialog                    = abap_true
+          expand_source_in_batch_mode  = abap_false
+          expand_source_in_online_mode = abap_false
+        TABLES
+          i_findstrings                = lt_objects
+          o_founds                     = <lfs_t_dyn_usage>
+        EXCEPTIONS
+          not_executed                 = 1
+          not_found                    = 2
+          illegal_object               = 3
+          no_cross_for_this_object     = 4
+          batch                        = 5
+          batchjob_error               = 6
+          wrong_type                   = 7
+          object_not_exist             = 8
+          OTHERS                       = 9.
+*   Get the number of entries in production if the object is a table:
+       IF lv_object EQ 'TABD' OR lv_object EQ 'INDX'.
+
+*     Compose destination:
+        CONCATENATE sy-sysid(2) 'P' 'CLNT' sy-mandt INTO lv_rfc_dest.
+        CASE lv_object.
+          WHEN 'TABD'.
+            ls_num_entry-tabname = ls_obj_outcome-obj_name.
+          WHEN 'INDX'.
+            SPLIT ls_obj_outcome-obj_name AT ' ' INTO ls_num_entry-tabname lv_object.
+        ENDCASE.
+        APPEND ls_num_entry TO lt_num_entry.
+*     Assign to field symbol the ENTRIES_IN_PROD to handle the outcome:
+        ASSIGN COMPONENT 'ENTRIES_IN_PROD' OF STRUCTURE <lfs_s_obj_outcome> TO <lfs_v_dyn_component>.
+*     Call RFC Function, retrieving the count of entries:
+        CALL FUNCTION 'EM_GET_NUMBER_OF_ENTRIES' DESTINATION lv_rfc_dest
+          TABLES
+            it_tables = lt_num_entry.
+*     Assign outcome to handler
+        READ TABLE lt_num_entry INTO ls_num_entry INDEX 1.
+        <lfs_v_dyn_component> = ls_num_entry-tabrows.
+
+
+      ENDIF.
+*    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+*                                          DEEP ANALYSIS OF ELEMENTS
+*    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+*   In case of having a DATA ELEMENT or a TABLE / STRUCTURE, which have deeper elements to analyse, proceed:
+      UNASSIGN <lfs_v_dyn_component>.
+      CHECK lv_dyn_enclosed IS NOT INITIAL. "If object does not have a version, the analysis will fail.
+      ASSIGN (lv_dyn_enclosed) TO <lfs_t_dyn_component>.
+      LOOP AT <lfs_t_dyn_component> ASSIGNING <lfs_s_dyn_component>.
+        CASE ls_e071-object.
+*     Data Elements OR Structure: Then look for their Domain if there is any
+          WHEN 'DTEL' OR 'DTED' OR 'TABL' OR 'TABD'.
+            ls_e071_single-object  = 'DOMD'.
+            lv_dyn_comp            = 'DOMNAME'.
+            lv_component_new       = 8.
+            lv_component_old       = 9.
+*     Table Types:
+          WHEN 'TTYP' OR 'TTYD'.
+
+
+        ENDCASE.
+*       Prepare the recursive call to FM: Type of analysis - SINGLE
+        ASSIGN COMPONENT lv_dyn_comp OF STRUCTURE <lfs_s_dyn_component> TO <lfs_v_dyn_component>.
+        CHECK <lfs_v_dyn_component> IS ASSIGNED.
+        CHECK <lfs_v_dyn_component> IS NOT INITIAL.
+        ls_e071_single-obj_name = <lfs_v_dyn_component>.
+        APPEND ls_e071_single TO lt_e071_single.
+        CALL FUNCTION 'ZFM_DDIC_ANALYSIS'
+          EXPORTING
+            it_e071             = lt_e071_single
+            iv_analysis         = 'SINGLE'
+          IMPORTING
+            et_obj_comparations = lt_enclosed_object.
+
+        ASSIGN lt_enclosed_object TO <lfs_t_dyn_field>.
+        LOOP AT <lfs_t_dyn_field> ASSIGNING <lfs_s_dyn_field>.
+          ASSIGN COMPONENT lv_component_new OF STRUCTURE <lfs_s_dyn_field> TO <lfs_t_dyn_field_new>.
+          ASSIGN COMPONENT lv_component_old OF STRUCTURE <lfs_s_dyn_field> TO <lfs_t_dyn_field_old>.
+
+        ENDLOOP.
+        ASSIGN COMPONENT lv_component_new OF STRUCTURE <lfs_s_obj_outcome> TO <lfs_v_tab_comparation>.
+*        <lfs_v_tab_comparation> = <lfs_t_dyn_field_new>.
+        INSERT LINES OF <lfs_t_dyn_field_new> INTO TABLE <lfs_v_tab_comparation>.
+        UNASSIGN <lfs_v_tab_comparation>.
+        ASSIGN COMPONENT lv_component_old OF STRUCTURE <lfs_s_obj_outcome> TO <lfs_v_tab_comparation>.
+*        <lfs_v_tab_comparation> = <lfs_t_dyn_field_old>.
+        INSERT LINES OF <lfs_t_dyn_field_old> INTO TABLE <lfs_v_tab_comparation>.
+
+        CLEAR: lt_enclosed_object, ls_enclosed_object, ls_e071_single, lt_e071_single, lt_enclosed_object.
+        UNASSIGN: <lfs_t_dyn_field_new>, <lfs_t_dyn_field_old>, <lfs_v_dyn_component>, <lfs_t_dyn_field>, <lfs_s_dyn_field>..
+
+      ENDLOOP.
+    ENDIF.
+*    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+*   Categorisation has been completed: load data into exporting parameter
+    APPEND <lfs_s_obj_outcome> TO et_obj_comparations.
+    UNASSIGN: <lfs_s_obj_outcome>, <lfs_t_dyn_usage>, <lfs_v_dyn_component>.
+    CLEAR: ls_vers_num, lv_t_analysis, ls_obj_outcome, lv_object, lt_objects, ls_num_entry, lt_num_entry.
+
+  ENDLOOP.
+ENDFUNCTION.
