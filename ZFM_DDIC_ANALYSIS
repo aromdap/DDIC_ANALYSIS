@@ -7,13 +7,6 @@ FUNCTION zfm_ddic_analysis.
 *"  EXPORTING
 *"     VALUE(ET_OBJ_COMPARATIONS) TYPE  ZTTY_DDIC_ANALYSIS
 *"----------------------------------------------------------------------
-  TYPES: BEGIN OF lty_dd03l,
-          tabname  TYPE string,
-          rollname TYPE string,
-          domname  TYPE string,
-          comptype TYPE string,
-         END OF lty_dd03l.
-
   CONSTANTS: lc_e                              TYPE comptype VALUE 'E'.
   CONSTANTS: lc_n                              TYPE comptype VALUE 'N'.
   CONSTANTS: lc_s                              TYPE comptype VALUE 'S'.
@@ -47,40 +40,69 @@ FUNCTION zfm_ddic_analysis.
   DATA: lv_rfc_dest                            TYPE rfcdest.
   DATA: lt_enclosed_object                     TYPE ztty_ddic_analysis.
   DATA: ls_enclosed_object                     TYPE zty_ddic_analysis.
-  DATA: lt_idex                                TYPE STANDARD TABLE OF lty_dd03l.
-  DATA: ls_idex                                TYPE lty_dd03l.
-  DATA: lt_options                             TYPE STANDARD TABLE OF rfc_db_opt.
-  DATA: ls_options                             TYPE rfc_db_opt.
-  DATA: lt_fields                              TYPE STANDARD TABLE OF rfc_db_fld.
-  DATA: ls_fields                              TYPE rfc_db_fld.
-  DATA: lt_data                                TYPE STANDARD TABLE OF tab512.
-  DATA: ls_data                                TYPE tab512.
+  DATA: lt_idex                                TYPE enh_t_dd03l.
+  DATA: ls_idex                                TYPE LINE OF enh_t_dd03l.
+  DATA: lt_critical                            TYPE stty_string_table.
+  DATA: ls_critical                            TYPE LINE OF stty_string_table.
 
+  IF iv_analysis EQ 'DEEP'.
+    CALL FUNCTION 'ZXX_GET_DDIC_DETAILS'
+      EXPORTING
+        x_ddic_name     = '/UTPIF/S_PROC_STEP_DATA_ALL'
+      IMPORTING
+        xt_ddic_details = lt_idex.
+
+    CALL FUNCTION 'ZFM_CRITICAL_BATCH_ANALYSIS'
+      IMPORTING
+        et_ddic_objects = lt_critical[].
+
+
+  ENDIF.
 
   LOOP AT it_e071 INTO ls_e071.
 *>>>This case would be much useful if we enhance variant Z_CR4966_DDIC_ELEMENTS in SOP to have in HIGH value these equivalences!
+*   Check if DDIC object belogs to an object used by a Critical Batch:
+    READ TABLE lt_critical[] INTO ls_critical WITH KEY value = ls_e071-obj_name.
+    IF sy-subrc EQ 0.
+      ls_obj_outcome-critical = abap_true.
+    ENDIF.
     CASE ls_e071-object.
 *     Domains:
       WHEN 'DOMA' OR 'DOMD'.
         ls_e071-object  = 'DOMD'.
         lv_t_analysis   = 'DD01V'.
+        READ TABLE lt_idex INTO ls_idex WITH KEY domname = ls_e071-obj_name comptype = lc_e TRANSPORTING NO FIELDS.
+        IF sy-subrc EQ 0.
+          ls_obj_outcome-idex = abap_true.
 
+        ENDIF.
 *     Data Elements:
       WHEN 'DTEL' OR 'DTED'.
         ls_e071-object  = 'DTED'.
         lv_t_analysis   = 'DD04V'.
+        READ TABLE lt_idex INTO ls_idex WITH KEY rollname = ls_e071-obj_name comptype = lc_e TRANSPORTING NO FIELDS.
+        IF sy-subrc EQ 0.
+          ls_obj_outcome-idex = abap_true.
 
+        ENDIF.
 *     Tables and Structures:
       WHEN 'TABL' OR 'TABD' OR 'TABT'.
         ls_e071-object  = 'TABD'.
         lv_t_analysis   = 'DD03V'.
+        READ TABLE lt_idex INTO ls_idex WITH KEY rollname = ls_e071-obj_name comptype = lc_s TRANSPORTING NO FIELDS.
+        IF sy-subrc EQ 0.
+          ls_obj_outcome-idex = abap_true.
 
+        ENDIF.
 *     Table Types:
       WHEN 'TTYP' OR 'TTYD'.
         ls_e071-object  = 'TTYD'.
         lv_t_analysis   = 'DD40V'.
+        READ TABLE lt_idex INTO ls_idex WITH KEY rollname = ls_e071-obj_name comptype = lc_l TRANSPORTING NO FIELDS.
+        IF sy-subrc EQ 0.
+          ls_obj_outcome-idex = abap_true.
 
-*     Indexes:
+        ENDIF.
       WHEN 'INDX'.
         ls_e071-object  = 'INDX'.
         lv_t_analysis   = 'DD12V'.
@@ -201,7 +223,7 @@ FUNCTION zfm_ddic_analysis.
           object_not_exist             = 8
           OTHERS                       = 9.
 *   Get the number of entries in production if the object is a table:
-       IF lv_object EQ 'TABD' OR lv_object EQ 'INDX'.
+      IF lv_object EQ 'TABD' OR lv_object EQ 'INDX'.
 
 *     Compose destination:
         CONCATENATE sy-sysid(2) 'P' 'CLNT' sy-mandt INTO lv_rfc_dest.
@@ -209,8 +231,9 @@ FUNCTION zfm_ddic_analysis.
           WHEN 'TABD'.
             ls_num_entry-tabname = ls_obj_outcome-obj_name.
           WHEN 'INDX'.
-            SPLIT ls_obj_outcome-obj_name AT ' ' INTO ls_num_entry-tabname lv_object.
+            SPLIT ls_obj_outcome-obj_name AT ' ' INTO lv_object ls_num_entry-tabname.
         ENDCASE.
+
         APPEND ls_num_entry TO lt_num_entry.
 *     Assign to field symbol the ENTRIES_IN_PROD to handle the outcome:
         ASSIGN COMPONENT 'ENTRIES_IN_PROD' OF STRUCTURE <lfs_s_obj_outcome> TO <lfs_v_dyn_component>.
@@ -229,7 +252,7 @@ FUNCTION zfm_ddic_analysis.
 *    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 *   In case of having a DATA ELEMENT or a TABLE / STRUCTURE, which have deeper elements to analyse, proceed:
       UNASSIGN <lfs_v_dyn_component>.
-      CHECK lv_dyn_enclosed IS NOT INITIAL. "If object does not have a version, the analysis will fail.
+      CHECK lv_dyn_enclosed IS NOT INITIAL.
       ASSIGN (lv_dyn_enclosed) TO <lfs_t_dyn_component>.
       LOOP AT <lfs_t_dyn_component> ASSIGNING <lfs_s_dyn_component>.
         CASE ls_e071-object.
