@@ -1,0 +1,1075 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZRPTT_SOP_DDIC_CLS
+*&---------------------------------------------------------------------*
+
+CLASS lcl_initial DEFINITION.
+  PUBLIC SECTION.
+    CLASS-METHODS: load_scrn.
+
+
+ENDCLASS.
+CLASS lcl_initial IMPLEMENTATION.
+  METHOD: load_scrn.
+    DATA: lv_today  TYPE scal-date.
+    DATA: lv_result TYPE scal-indicator.
+    TYPES: lrty_datum TYPE RANGE OF zxx_hpalm_data-zplanned_date.
+    DATA: ls_datum TYPE LINE OF lrty_datum.
+* ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨ *
+    lv_today = sy-datum.
+    CALL FUNCTION 'DATE_COMPUTE_DAY'
+      EXPORTING
+        date = lv_today
+      IMPORTING
+        day  = lv_result.
+
+*   Get the Sunday:
+    ls_datum-sign   = 'I'.
+    ls_datum-option = 'EQ'.
+    ls_datum-low    = sy-datum + ( 7 - lv_result ).
+    APPEND ls_datum TO s_datum[].
+
+  ENDMETHOD.
+ENDCLASS.
+CLASS lcl_data DEFINITION.
+  PUBLIC SECTION.
+    INTERFACES: zif_ddic_analysis.
+    CLASS-METHODS: fetch RETURNING VALUE(rr_trkorr) TYPE zif_ddic_analysis=>rty_trkorr.
+
+  PRIVATE SECTION.
+    TYPES: tty_hpalm_data TYPE STANDARD TABLE OF zxx_hpalm_data WITH DEFAULT KEY.
+    TYPES: tty_tr_def_cr  TYPE STANDARD TABLE OF zxx_tr_def_cr  WITH DEFAULT KEY.
+    CLASS-METHODS: _get_hpalm_data RETURNING VALUE(rt_hpalm)       TYPE tty_hpalm_data.
+    CLASS-METHODS: _get_tr_data    IMPORTING it_hpalm            TYPE tty_hpalm_data
+                                   RETURNING VALUE(rt_tr_def_cr) TYPE tty_tr_def_cr.
+
+ENDCLASS.
+CLASS lcl_data IMPLEMENTATION.
+  METHOD: fetch.
+    DATA: lt_hpalm_data TYPE STANDARD TABLE OF zxx_hpalm_data.
+    DATA: lt_tr_def_cr  TYPE STANDARD TABLE OF zxx_tr_def_cr.
+    DATA: ls_tr_def_cr  TYPE zxx_tr_def_cr.
+    DATA: ls_trkorr     TYPE LINE OF zif_ddic_analysis=>rty_trkorr.
+*  ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨  *
+    lt_hpalm_data[]  = _get_hpalm_data( ).
+    lt_tr_def_cr[]   = _get_tr_data( lt_hpalm_data[] ).
+    CHECK lt_tr_def_cr[] IS NOT INITIAL.
+    ls_trkorr-sign = 'I'.
+    ls_trkorr-option = 'EQ'.
+    LOOP AT lt_tr_def_cr[] INTO ls_tr_def_cr.
+      ls_trkorr-low = ls_tr_def_cr-trkorr.
+      APPEND ls_trkorr TO rr_trkorr[].
+
+    ENDLOOP.
+  ENDMETHOD.
+  METHOD: _get_hpalm_data.
+*  ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨  *
+    SELECT *
+      FROM zxx_hpalm_data
+      INTO TABLE rt_hpalm[]
+      WHERE zreq_id       IN s_reqid[]
+      AND   zplanned_date IN s_datum[]
+      AND   zrel_status   IN s_status[].
+
+  ENDMETHOD.
+  METHOD: _get_tr_data.
+*  ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨  *
+    IF it_hpalm[] IS NOT INITIAL.
+      SELECT *
+        FROM zxx_tr_def_cr
+        INTO TABLE rt_tr_def_cr[]
+        FOR ALL ENTRIES IN it_hpalm[]
+        WHERE zreq_id       EQ it_hpalm-zreq_id.
+    ELSE.
+      MESSAGE 'For the criteria provided, no data was found in ZXX_HPALM_DATA!' TYPE 'E' DISPLAY LIKE 'S'.
+
+    ENDIF.
+  ENDMETHOD.
+ENDCLASS.
+CLASS lcl_show DEFINITION.
+  PUBLIC SECTION.
+    INTERFACES: zif_ddic_analysis.
+    METHODS: constructor IMPORTING io_in TYPE REF TO zcl_ddic_analysis.
+    METHODS: display.
+    METHODS: on_link_click  FOR EVENT link_click OF cl_salv_events_table IMPORTING row column.
+    CLASS-METHODS: create_cat_from_table IMPORTING it_any         TYPE ANY TABLE
+                                         RETURNING VALUE(rt_fcat) TYPE lvc_t_fcat.
+  PRIVATE SECTION.
+    DATA: o_analysis    TYPE REF TO zcl_ddic_analysis.
+    DATA: t_alv         TYPE STANDARD TABLE OF alv_tab.
+    DATA: o_alv         TYPE REF TO cl_salv_table.
+    DATA: o_columns     TYPE REF TO cl_salv_columns_table.
+    DATA: o_column      TYPE REF TO cl_salv_column_table.
+    DATA: o_functions   TYPE REF TO cl_salv_functions_list.
+    DATA: o_events      TYPE REF TO cl_salv_events_table.
+
+    METHODS: _display_selection CHANGING ct_development TYPE STANDARD TABLE
+                                         ct_production  TYPE STANDARD TABLE.
+    CLASS-METHODS: get_names_from_dtel   IMPORTING iv_dtel   TYPE lvc_fname
+                                         CHANGING  cv_short  TYPE scrtext_s
+                                                   cv_medium TYPE scrtext_m
+                                                   cv_long   TYPE scrtext_l.
+ENDCLASS.
+CLASS lcl_show IMPLEMENTATION.
+  METHOD: constructor.
+    o_analysis = io_in.
+
+  ENDMETHOD.
+  METHOD: display.
+    "Creation of the ALV:
+    cl_salv_table=>factory( IMPORTING r_salv_table = o_alv
+                              CHANGING  t_table      = <gfs_t_analysis> ).
+
+    o_columns ?= o_alv->get_columns( ).
+    o_columns->set_optimize( 'X' ).   "Optimize all the columns' width
+
+    "ALV catalogue:
+    o_column  ?= o_columns->get_column( 'TRSTATUS' ).
+*    o_column->set_short_text( 'TR/TOC St.' ).
+*    o_column->set_medium_text( 'Dump ID' ).
+    o_column->set_long_text( 'TR/TOC Status' ).
+
+    o_column  ?= o_columns->get_column( 'STATUS' ).
+*    o_column->set_short_text( 'TR/TOC St.' ).
+*    o_column->set_medium_text( 'Dump ID' ).
+    o_column->set_long_text( 'HPALM Rel. Status' ).
+
+    o_column  ?= o_columns->get_column( 'OBJ_TYPE' ).
+*    o_column->set_short_text( 'TR/TOC St.' ).
+*    o_column->set_medium_text( 'Dump ID' ).
+    o_column->set_long_text( 'Object Type' ).
+
+    o_column  ?= o_columns->get_column( 'ENTRIES_IN_PROD' ).
+*    o_column->set_short_text( 'TR/TOC St.' ).
+*    o_column->set_medium_text( 'Dump ID' ).
+    o_column->set_long_text( 'Entries Found in Production' ).
+
+    o_column  ?= o_columns->get_column( 'WHERE_USE_REF' ).
+*    o_column->set_short_text( 'TR/TOC St.' ).
+*    o_column->set_medium_text( 'Dump ID' ).
+    o_column->set_long_text( 'Where-Is-Used in Development' ).
+
+    o_column  ?= o_columns->get_column( 'RISK_ASSESS' ).
+*    o_column->set_short_text( 'TR/TOC St.' ).
+*    o_column->set_medium_text( 'Dump ID' ).
+    o_column->set_long_text( 'Risk Assessment' ).
+
+    o_column  ?= o_columns->get_column( 'RISK_LEVEL' ).
+*    o_column->set_short_text( 'TR/TOC St.' ).
+*    o_column->set_medium_text( 'Dump ID' ).
+    o_column->set_long_text( 'Risk Level' ).
+
+    TRY.
+        o_column ?= o_columns->get_column( 'OBJ_NAME' ).
+        o_column->set_cell_type( if_salv_c_cell_type=>hotspot ).
+      CATCH cx_salv_not_found.
+    ENDTRY.
+
+    o_events = o_alv->get_event( ).
+    SET HANDLER me->on_link_click FOR o_events.
+
+    o_functions = o_alv->get_functions( ).
+    o_functions->set_all( ).
+    o_alv->display( ).
+
+  ENDMETHOD.
+  METHOD on_link_click.
+    DATA: lv_skip                   TYPE flag.
+    DATA: lv_component_development  TYPE i.
+    DATA: lv_component_production   TYPE i.
+    DATA: ls_ddic_data              TYPE zif_ddic_analysis=>ty_ddic.
+    FIELD-SYMBOLS: <lfs_s_ddic>     TYPE zif_ddic_analysis=>ty_ddic.
+    FIELD-SYMBOLS: <lfs_s_out>      TYPE zif_ddic_analysis=>ty_output.
+    FIELD-SYMBOLS: <lfs_t_dev>      TYPE STANDARD TABLE.
+    FIELD-SYMBOLS: <lfs_t_pro>      TYPE STANDARD TABLE.
+    FIELD-SYMBOLS: <lfs_v_trkorr>      TYPE any.
+    FIELD-SYMBOLS: <lfs_v_object>      TYPE any.
+    FIELD-SYMBOLS: <lfs_v_obj_name>     TYPE any.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    "1  Mandate
+    "2  Transport Order
+    "3  Object Type
+    "4  Object Name
+    "5  Whether object is IDEX or not
+    "6  Whether object is used in Critical Batches or not
+    "7  Number of entries in production
+    "8  Relationship of Use References in Production
+    "9  Development Domains
+    "10 Production Domains
+    "11 Development Tables / Structures
+    "12 Production Tables / Structures
+    "13 Development Data Elements
+    "14 Production Data Elements
+    "15 Development Table Types
+    "16 Production Table Types
+
+    READ TABLE o_analysis->t_analysis[] ASSIGNING <lfs_s_out> INDEX row.
+    CASE <lfs_s_out>-object.
+      WHEN 'DOMD' OR 'DOMA'.
+        lv_component_development = 9.
+      WHEN 'TABD' OR 'TABL' OR 'TABT'.
+        lv_component_development = 11.
+      WHEN 'DTED' OR 'DTET'.
+        lv_component_development = 13.
+      WHEN 'TTYP' OR 'TTYD'.
+        lv_component_development = 15.
+      WHEN 'INDX'.
+        lv_component_development = 17.
+
+      WHEN OTHERS.
+        MESSAGE i000(0k) WITH 'Unfortunately, the chosen object is out of scope!'.
+        lv_skip = abap_true.
+
+    ENDCASE.
+    CHECK lv_skip IS INITIAL.
+    READ TABLE o_analysis->t_ddic_data[] ASSIGNING <lfs_s_ddic> WITH KEY trkorr   = <lfs_s_out>-trkorr
+                                                                         object   = <lfs_s_out>-object
+                                                                         obj_name = <lfs_s_out>-obj_name.
+    IF <lfs_s_ddic> IS ASSIGNED.
+      lv_component_production = lv_component_development + 1.
+      ASSIGN COMPONENT lv_component_development OF STRUCTURE <lfs_s_ddic> TO <gfs_t_dev>.
+      ASSIGN COMPONENT lv_component_production  OF STRUCTURE <lfs_s_ddic> TO <gfs_t_pro>.
+      IF <gfs_t_dev> IS ASSIGNED AND <gfs_t_pro> IS ASSIGNED.
+*        CALL SCREEN 9000.
+        me->_display_selection( CHANGING ct_development = <gfs_t_dev>
+                                         ct_production  = <gfs_t_pro> ).
+
+      ENDIF.
+    ENDIF.
+    UNASSIGN: <lfs_s_ddic>, <lfs_s_out>, <lfs_t_dev>, <lfs_t_pro>.
+  ENDMETHOD.                    "on_single_click
+  METHOD: _display_selection.
+    DATA: lt_fcat               TYPE lvc_t_fcat.
+    DATA: custom_container TYPE REF TO cl_gui_custom_container.
+    DATA: splitter TYPE REF TO cl_gui_splitter_container.
+    DATA: graphic_parent1 TYPE REF TO cl_gui_container.
+    DATA: graphic_parent2 TYPE REF TO cl_gui_container.
+    DATA: ref_grid TYPE REF TO cl_gui_alv_grid.
+    DATA: ref_grid1 TYPE REF TO cl_gui_alv_grid.
+    DATA: s_layout     TYPE lvc_s_layo.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    DATA: lv_skip   TYPE flag.
+    DATA: lv_answer TYPE string.
+    DATA: lv_start_column TYPE i.
+    DATA: lv_end_column   TYPE i.
+    DATA: lv_start_line   TYPE i.
+    DATA: lv_end_line     TYPE i.
+    FIELD-SYMBOLS: <lfs_t> TYPE STANDARD TABLE.
+*   ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨   *
+    CALL FUNCTION 'POPUP_TO_CONFIRM'
+      EXPORTING
+        titlebar       = text-500
+*       DIAGNOSE_OBJECT             = ' '
+        text_question  = text-501
+        text_button_1  = text-502
+*       ICON_BUTTON_1  = ' '
+        text_button_2  = text-503
+*       ICON_BUTTON_2  = ' '
+*       DEFAULT_BUTTON = '1'
+*       DISPLAY_CANCEL_BUTTON       = 'X'
+*       USERDEFINED_F1_HELP         = ' '
+*       START_COLUMN   = 25
+*       START_ROW      = 6
+*       POPUP_TYPE     =
+*       IV_QUICKINFO_BUTTON_1       = ' '
+*       IV_QUICKINFO_BUTTON_2       = ' '
+      IMPORTING
+        answer         = lv_answer
+*       TABLES
+*       PARAMETER      =
+      EXCEPTIONS
+        text_not_found = 1
+        OTHERS         = 2.
+
+    CASE lv_answer.
+      WHEN '1'.
+        ASSIGN ct_development TO <lfs_t>.
+        lv_start_column = 1  .
+        lv_end_column   = 500.
+        lv_start_line   = 1  .
+        lv_end_line     = 15 .
+
+      WHEN '2'.
+        ASSIGN ct_production TO <lfs_t>.
+        lv_start_column = 1  .
+        lv_end_column   = 500.
+        lv_start_line   = 15  .
+        lv_end_line     = 30 .
+
+      WHEN OTHERS.
+        lv_skip = abap_true.
+    ENDCASE.
+    "Creation of the
+    CHECK lv_skip IS INITIAL.
+    IF <lfs_t> IS INITIAL.
+      MESSAGE i000(0k) WITH 'This is a brand new object.'
+                            'There is no version in Prodution yet!'.
+    ELSE.
+      cl_salv_table=>factory( IMPORTING r_salv_table = o_alv
+                                CHANGING  t_table      = <lfs_t> ).
+
+      o_columns ?= o_alv->get_columns( ).
+      o_columns->set_optimize( 'X' ).   "Optimize all the columns' width
+      o_columns ?= o_alv->get_columns( ).
+      o_columns->set_optimize( 'X' ).   "Optimize all the columns' width
+      o_functions = o_alv->get_functions( ).
+      o_functions->set_all( ).
+      o_alv->set_screen_popup( start_column = lv_start_column
+                               end_column   = lv_end_column
+                               start_line   = lv_start_line
+                               end_line     = lv_end_line     ).
+      o_alv->display( ).
+
+    ENDIF.
+***    ASSIGN ct_development TO <gfs_t_dev>.
+***    ASSIGN ct_production  TO <gfs_t_pro>.
+***    CALL SCREEN 9000.
+
+  ENDMETHOD.
+  METHOD: create_cat_from_table.
+    DATA: lo_importdb           TYPE REF TO cl_abap_expimp_db.
+    DATA: lref_table            TYPE REF TO cl_abap_tabledescr.
+    DATA: lref_struct           TYPE REF TO cl_abap_structdescr.
+    DATA: lt_details            TYPE abap_compdescr_tab.
+    DATA: ls_details            TYPE LINE OF abap_compdescr_tab.
+    DATA: lt_fcat               TYPE lvc_t_fcat.
+    DATA: ls_fcat               TYPE lvc_s_fcat.
+* ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨ *
+    CREATE OBJECT lo_importdb.
+*   Get structure of generic typed exporting table provided by user:
+    lref_table  ?= cl_abap_tabledescr=>describe_by_data( it_any[] ).
+    lref_struct ?= lref_table->get_table_line_type( ).
+    lt_details[] = lref_struct->components.
+*   Compose catalogue from components:
+    LOOP AT lt_details INTO ls_details.
+      ls_fcat-fieldname = ls_details-name.
+      ls_fcat-outputlen = ls_details-length.
+      ls_fcat-intlen    = ls_details-length.
+      ls_fcat-inttype   = ls_details-type_kind.
+      ls_fcat-datatype  = ls_details-type_kind.
+      lcl_show=>get_names_from_dtel( EXPORTING iv_dtel   = ls_details-name
+                                     CHANGING  cv_short  = ls_fcat-scrtext_s
+                                               cv_medium = ls_fcat-scrtext_m
+                                               cv_long   = ls_fcat-scrtext_l ).
+      ls_fcat-coltext   = ls_fcat-scrtext_l.
+      APPEND ls_fcat    TO rt_fcat[].
+      CLEAR ls_fcat.
+
+    ENDLOOP.
+
+  ENDMETHOD.
+  METHOD: get_names_from_dtel.
+* ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨ *
+    SELECT scrtext_s scrtext_m scrtext_s
+      FROM dd04t
+      INTO (cv_short, cv_medium, cv_long)
+      WHERE rollname   EQ iv_dtel
+        AND ddlanguage EQ 'EN'.
+
+    ENDSELECT.
+  ENDMETHOD.
+ENDCLASS.
+CLASS lcl_share DEFINITION.
+  PUBLIC SECTION.
+    DATA: o_analysis TYPE REF TO zcl_ddic_analysis.
+    INTERFACES: zif_ddic_analysis.
+    METHODS: constructor IMPORTING io_in TYPE REF TO zcl_ddic_analysis.
+    METHODS: prepare_email.
+    METHODS: send_email.
+
+  PRIVATE SECTION.
+    DATA: t_analysis_header TYPE zif_ddic_analysis=>tty_output.
+    DATA: ref_t_header  TYPE REF TO data.
+    DATA: ref_t_data    TYPE REF TO data.
+    DATA: t_text_top    TYPE bcsy_text.
+    DATA: t_text_bottom TYPE bcsy_text.
+    DATA: v_subject     TYPE so_obj_des            .
+
+    METHODS: _create_header IMPORTING iv_type   TYPE string
+                            EXPORTING et_header TYPE STANDARD TABLE.
+    METHODS: _create_texts  IMPORTING iv_type   TYPE string
+                            EXPORTING et_top    TYPE bcsy_text
+                                      et_bottom TYPE bcsy_text.
+    METHODS: _create_texts_technical  EXPORTING et_top    TYPE bcsy_text
+                                                et_bottom TYPE bcsy_text.
+    METHODS: _create_texts_functional EXPORTING et_top    TYPE bcsy_text
+                                                et_bottom TYPE bcsy_text.
+    METHODS: _create_texts_db2        EXPORTING et_top    TYPE bcsy_text
+                                                et_bottom TYPE bcsy_text.
+    METHODS: _create_subject          IMPORTING iv_type           TYPE string
+                                      RETURNING VALUE(rv_subject) TYPE so_obj_des.
+
+    METHODS: _get_release_date        IMPORTING iv_type          TYPE string
+                                                iv_target        TYPE string
+                                      RETURNING VALUE(rv_format) TYPE string.
+
+    METHODS: _selscrn_to_outputs.
+
+ENDCLASS.
+CLASS lcl_share IMPLEMENTATION.
+  METHOD: constructor.
+    me->o_analysis = io_in.
+
+  ENDMETHOD.
+  METHOD: prepare_email.
+    FIELD-SYMBOLS: <lfs_t_data>   TYPE STANDARD TABLE.
+    FIELD-SYMBOLS: <lfs_t_header> TYPE STANDARD TABLE.
+    DATA: lv_type TYPE string.
+* ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨ *
+*   Depending on chosen option by user, pull shaped data for email:
+    CASE abap_true.
+      WHEN r_tech.
+*       Pull data:
+        CREATE DATA me->ref_t_data TYPE zif_ddic_analysis=>tty_output.
+        ASSIGN me->ref_t_data->* TO <lfs_t_data>.
+        <lfs_t_data> = me->o_analysis->pull_technical( ).
+*       Create header:
+        CREATE DATA me->ref_t_header TYPE zif_ddic_analysis=>tty_output.
+        ASSIGN me->ref_t_header->* TO <lfs_t_header>.
+*       Define type of output:
+        lv_type = 'TECHNICAL'.
+
+      WHEN r_func.
+*       Pull data:
+        CREATE DATA me->ref_t_data TYPE zif_ddic_analysis=>tty_functional_d.
+        ASSIGN me->ref_t_data->* TO <lfs_t_data>.
+        <lfs_t_data> = me->o_analysis->pull_functional( ).
+*       Create header:
+        CREATE DATA me->ref_t_header TYPE zif_ddic_analysis=>tty_functional.
+        ASSIGN me->ref_t_header->* TO <lfs_t_header>.
+*       Define type of output:
+        lv_type = 'FUNCTIONAL'.
+
+      WHEN r_db2.
+*       Pull data:
+        CREATE DATA me->ref_t_data TYPE zif_ddic_analysis=>tty_db2.
+        ASSIGN me->ref_t_data->* TO <lfs_t_data>.
+        CASE abap_true.
+          WHEN r_wend.
+            IF r_fis EQ abap_true.
+              <lfs_t_data> = me->o_analysis->pull_db2( iv_drop_low_risk = abap_true ).
+            ELSE.
+              <lfs_t_data> = me->o_analysis->pull_db2( ).
+            ENDIF.
+
+          WHEN OTHERS.
+            <lfs_t_data> = me->o_analysis->pull_db2( ).
+        ENDCASE.
+
+*       Prepare target for the header:
+        CREATE DATA me->ref_t_header TYPE zif_ddic_analysis=>tty_db2.
+        ASSIGN me->ref_t_header->* TO <lfs_t_header>.
+*       Define type of output:
+        lv_type = 'DB2'.
+
+    ENDCASE.
+
+*   Create header:
+    me->_create_header( EXPORTING iv_type   = lv_type
+                        IMPORTING et_header = <lfs_t_header> ).
+
+*   Create texts based on the type of analysis:
+    me->_create_texts( EXPORTING iv_type    = lv_type
+                       IMPORTING et_top     = me->t_text_top[]
+                                 et_bottom  = me->t_text_bottom[] ).
+
+*   Create subject based on the type of analysis:
+    me->v_subject = me->_create_subject( lv_type ).
+
+
+  ENDMETHOD.
+  METHOD: send_email.
+    DATA: lv_row_counter TYPE i.
+    DATA: lo_email TYPE REF TO zcl_email_communications.
+    FIELD-SYMBOLS: <lfs_t_header> TYPE STANDARD TABLE.
+    FIELD-SYMBOLS: <lfs_t_data>   TYPE STANDARD TABLE.
+    FIELD-SYMBOLS: <lfs_s_data>   TYPE any.
+    FIELD-SYMBOLS: <lfs_v_data>   TYPE any.
+* ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨ *
+    CREATE OBJECT lo_email.
+    lo_email->load_sender( p_sndr ).
+    lo_email->load_receivers( s_rcpnts[] ).
+    lo_email->load_subject( me->v_subject ).
+    lo_email->load_texts( iv_sort = 1
+                          it_text = me->t_text_top[] ).
+    lo_email->load_texts( iv_sort = 2
+                          it_text = me->t_text_bottom[] ).
+    ASSIGN me->ref_t_header->* TO <lfs_t_header>.
+    ASSIGN me->ref_t_data->* TO <lfs_t_data>.
+    IF <lfs_t_data> IS NOT INITIAL.
+      lo_email->load_body_tables( iv_sort = 1
+                                  it_header = <lfs_t_header>
+                                  it_table  = <lfs_t_data> ).
+*     For Functional analysis, do highlight the dangerous changes:
+      IF r_func EQ abap_true.
+        LOOP AT <lfs_t_data> ASSIGNING <lfs_s_data>.
+          ADD 1 TO lv_row_counter.
+          ASSIGN COMPONENT 'DDIC_RISK' OF STRUCTURE <lfs_s_data> TO <lfs_v_data>.
+          IF <lfs_v_data> IS ASSIGNED AND <lfs_v_data> CS 'Very High DDIC Risk'.
+            lo_email->change_layout_template( iv_sort = 1
+                                              iv_row  = ( lv_row_counter + 1 )
+                                              iv_bg_color = zif_email_types=>c_header_red ).
+
+          ELSEIF <lfs_v_data> IS ASSIGNED AND <lfs_v_data> CS 'High DDIC Risk'.
+            lo_email->change_layout_template( iv_sort = 1
+                                              iv_row  = ( lv_row_counter + 1 )
+                                              iv_bg_color = zif_email_types=>c_row_3_red ).
+
+          ELSEIF <lfs_v_data> IS ASSIGNED AND <lfs_v_data> CS 'TR not linked yet!'.
+            lo_email->change_layout_template( iv_sort = 1
+                                              iv_row  = ( lv_row_counter + 1 )
+                                              iv_bg_color = zif_email_types=>c_row_2_blue  ).
+          ENDIF.
+        ENDLOOP.
+      ENDIF.
+
+
+      IF p_addatt EQ abap_true AND me->o_analysis->t_analysis[] IS NOT INITIAL.
+        lo_email->load_attachments( EXPORTING  iv_sort      = 1
+                                               iv_filename  = 'DDIC_Assessment.xml'
+                                               iv_sheetname = 'Full Breakdown'
+                                               it_header    = me->t_analysis_header[]
+                                     CHANGING  ct_table     = me->o_analysis->t_analysis[] ).
+      ENDIF.
+    ENDIF.
+    lo_email->send( ).
+
+  ENDMETHOD.
+  METHOD: _create_header.
+    DATA: ls_technical  TYPE zif_ddic_analysis=>ty_output.
+    DATA: ls_functional TYPE zif_ddic_analysis=>ty_functional.
+    DATA: ls_db2        TYPE zif_ddic_analysis=>ty_db2.
+
+
+    CASE iv_type.
+      WHEN 'TECHNICAL'.
+        ls_technical-trstatus        = 'TR/TOC Status'.
+        ls_technical-status          = 'Release Status'.
+        ls_technical-req_id          = 'Req.ID'.
+        ls_technical-change          = 'Change'.
+        ls_technical-trkorr          = 'TRKORR'.
+        ls_technical-package         = 'Package'.
+        ls_technical-r3_sid          = 'Target System'.
+        ls_technical-pgmid           = 'PgID'.
+        ls_technical-object          = 'Object'.
+        ls_technical-obj_name        = 'Object Name'.
+        ls_technical-obj_type        = 'Object Type'.
+        ls_technical-entries_in_prod = 'Entries in Prod.'.
+        ls_technical-where_use_ref   = 'Where-Is-Used'.
+        ls_technical-risk_assess     = 'Risk Assessment'.
+        ls_technical-risk_level      = 'Risk Level'.
+
+        APPEND ls_technical TO et_header[].
+
+      WHEN 'FUNCTIONAL'.
+        ls_functional-linked        = 'TR Linked'.
+        ls_functional-ddic_risk     = 'DDIC Risk'.
+        ls_functional-req_id        = 'Req.ID'.
+        ls_functional-status        = 'Release Status'.
+        ls_functional-change_name   = 'Change'.
+        ls_functional-description   = 'Description'.
+        ls_functional-owner_name    = 'Owner Name'.
+        ls_functional-supplier_name = 'Supplier Name'.
+
+        APPEND ls_functional TO et_header[].
+
+      WHEN 'DB2'.
+        ls_db2-req_id          = 'Requirement Id'.
+        ls_db2-change          = 'CR/Inc Id'.
+        ls_db2-trkorr          = 'TR Id'.
+        ls_db2-package         = 'Package'.
+        ls_db2-r3_sid          = 'Target System'.
+        ls_db2-pgmid           = 'PgID'.
+        ls_db2-object          = 'Obj.'.
+        ls_db2-obj_name        = 'Object Name'.
+        ls_db2-obj_type        = 'Object Type'.
+        ls_db2-entries_in_prod = 'Entries in Prod.'.
+        ls_db2-where_use_ref   = 'Where-Is-Used'.
+        ls_db2-risk_assess     = 'Risk Assessment'.
+        ls_db2-risk_level      = 'Risk Level'.
+
+        APPEND ls_db2 TO et_header[].
+    ENDCASE.
+
+*   If user wants the full DDIC breakdown as an attachment, compose general header for DDIC Analysis:
+    CHECK p_addatt EQ abap_true.
+    ls_technical-trstatus        = 'TR/TOC Status'.
+    ls_technical-status          = 'Rel.Status'.
+    ls_technical-req_id          = 'Req.ID'.
+    ls_technical-change          = 'Change'.
+    ls_technical-trkorr          = 'TR / TOC'.
+    ls_technical-package         = 'Package'.
+    ls_technical-r3_sid          = 'Target System'.
+    ls_technical-pgmid           = 'PgID'.
+    ls_technical-object          = 'Object'.
+    ls_technical-obj_name        = 'Object Name'.
+    ls_technical-obj_type        = 'Object Type'.
+    ls_technical-entries_in_prod = 'Entries in Prod.'.
+    ls_technical-where_use_ref   = 'Where-Is-Used'.
+    ls_technical-risk_assess     = 'Risk Assessment'.
+    ls_technical-risk_level      = 'Risk Level'.
+
+    APPEND ls_technical TO me->t_analysis_header[].
+  ENDMETHOD.
+  METHOD: _create_subject.
+    DATA: lv_msg  TYPE string.
+    DATA: lv_type TYPE string.
+    DATA: lv_date TYPE string.
+*  ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨  *
+    CASE iv_type.
+      WHEN 'TECHNICAL'.
+        CONCATENATE text-400 text-401 INTO rv_subject SEPARATED BY space.
+
+      WHEN 'FUNCTIONAL'.
+        CONCATENATE text-400 text-402 INTO rv_subject SEPARATED BY space.
+
+      WHEN 'DB2'.
+        CASE abap_true.
+          WHEN r_wend.
+            lv_msg = text-410.
+          WHEN r_urgn.
+            lv_msg = text-411.
+          WHEN r_emer.
+            lv_msg = text-412.
+
+        ENDCASE.
+        CONCATENATE text-400 lv_msg INTO rv_subject SEPARATED BY space.
+        CLEAR lv_msg.
+
+
+*       Compose date based on input type:
+        IF p_datsub EQ abap_true.
+          CASE abap_true.
+            WHEN r_wend.
+              lv_type = text-410.
+            WHEN r_urgn.
+              lv_type = text-411.
+            WHEN r_emer.
+              lv_type = text-412.
+
+          ENDCASE.
+          lv_date = me->_get_release_date( iv_type = lv_type
+                                           iv_target = 'SUBJECT' ).
+*         Add date to subject:
+          CONCATENATE rv_subject lv_date INTO rv_subject SEPARATED BY space.
+        ELSE.
+*       For Weekend Releases, indicate in subject whether it is a FIS Stop or not:
+          IF r_wend EQ abap_true.
+            CASE abap_true.
+              WHEN r_fis.
+                lv_msg = text-413.
+              WHEN r_non.
+                lv_msg = text-414.
+
+            ENDCASE.
+            CONCATENATE rv_subject lv_msg INTO rv_subject SEPARATED BY space.
+
+          ENDIF.
+        ENDIF.
+    ENDCASE.
+  ENDMETHOD.
+  METHOD: _get_release_date.
+    DATA: lv_today  TYPE scal-date.
+    DATA: lv_result TYPE scal-indicator.
+    DATA: lv_date   TYPE sydatum.
+    DATA: lt_day    TYPE STANDARD TABLE OF t246.
+    DATA: ls_day    TYPE t246.
+*  ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨  *
+*   Based on Today's date and the type of release, guess the date of the transport:
+    lv_today = sy-datum.
+    CALL FUNCTION 'DATE_COMPUTE_DAY'
+      EXPORTING
+        date = lv_today
+      IMPORTING
+        day  = lv_result.
+    CASE iv_type.
+      WHEN text-410. "Weekend's Release
+*       Get Sunday of based on Today's date:
+        lv_date = sy-datum + ( 7 - lv_result ).
+
+      WHEN text-411.  "Urgent Release
+        lv_date = sy-datum + 1.
+
+      WHEN text-412.  ""Urgent Release
+        lv_date = sy-datum.
+
+    ENDCASE.
+
+*   Transform date:
+    CALL FUNCTION 'CONVERT_DATE_TO_EXTERNAL'
+      EXPORTING
+        date_internal            = lv_date
+      IMPORTING
+        date_external            = rv_format
+      EXCEPTIONS
+        date_internal_is_invalid = 1
+        OTHERS                   = 2.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+
+    ENDIF.
+
+*   In case the date has to go on the body, do further arrangements:
+    IF iv_target EQ 'BODY'.
+      CALL FUNCTION 'DAY_NAMES_GET'
+        TABLES
+          day_names           = lt_day[]
+        EXCEPTIONS
+          day_names_not_found = 1
+          OTHERS              = 2.
+      IF sy-subrc <> 0.
+* Implement suitable error handling here
+      ELSE.
+        rv_format = ls_day-langt.
+      ENDIF.
+
+
+      CASE abap_true.
+        WHEN r_wend.
+          CASE abap_true.
+            WHEN r_fis.
+              rv_format = '( Sunday morning )'.
+            WHEN r_non.
+              rv_format = '( Sunday morning. Approval is attached )'.
+          ENDCASE.
+        WHEN r_urgn.
+
+          READ TABLE lt_day[] INTO ls_day WITH KEY wotnr = ( lv_result + 1 ).
+          IF sy-subrc EQ 0.
+            rv_format = ls_day-langt .
+            CONCATENATE '( ' rv_format ' morning. Approval is attached )' INTO rv_format.
+          ENDIF.
+        WHEN r_emer.
+          rv_format = '( Approval is attached )'.
+
+      ENDCASE.
+    ENDIF.
+  ENDMETHOD.
+  METHOD: _create_texts.
+*  ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨  *
+    CASE iv_type.
+      WHEN 'TECHNICAL'.
+        me->_create_texts_technical( IMPORTING et_top    = et_top
+                                               et_bottom = et_bottom ).
+
+      WHEN 'FUNCTIONAL'.
+        me->_create_texts_functional( IMPORTING et_top    = et_top
+                                                et_bottom = et_bottom ).
+
+      WHEN 'DB2'.
+        me->_create_texts_db2( IMPORTING et_top    = et_top
+                                         et_bottom = et_bottom ).
+
+    ENDCASE.
+  ENDMETHOD.
+  METHOD: _create_texts_technical.
+    CONSTANTS: lc_intro  TYPE string VALUE '<br /><br />'.
+    DATA: lv_msg         TYPE string.
+    DATA: lv_msg_        TYPE string.
+*  ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨  *
+*   Be nice, say Hi:
+    APPEND text-100 TO et_top[].
+    APPEND lc_intro TO et_top[].
+    IF me->o_analysis->t_analysis[] IS INITIAL.
+*     No DDIC objects found for the inputs provided:
+      APPEND text-110 TO et_top[].
+      APPEND lc_intro TO et_top[].
+
+*     Change output body table & header: Place Selection Screen parameters
+      me->_selscrn_to_outputs( ).
+
+    ELSE.
+*     Introduce the email:
+      APPEND text-111 TO et_top[].
+      APPEND lc_intro TO et_top[].
+
+    ENDIF.
+*   Be nice, say Goodbye:
+    APPEND lc_intro TO et_bottom[].
+    APPEND text-200 TO et_bottom[].
+    APPEND lc_intro TO et_bottom[].
+    APPEND text-201 TO et_bottom[].
+    APPEND lc_intro TO et_bottom[].
+
+  ENDMETHOD.
+  METHOD: _create_texts_functional.
+    CONSTANTS: lc_intro  TYPE string VALUE '<br /><br />'.
+    DATA: lv_msg         TYPE string.
+    DATA: lv_msg_        TYPE string.
+    FIELD-SYMBOLS: <lfs_t_data>   TYPE STANDARD TABLE.
+*  ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨  *
+*   Be nice, say Hi:
+    APPEND text-100 TO et_top[].
+    APPEND lc_intro TO et_top[].
+
+*   Depending on the whether outputs have been found or not:
+    ASSIGN me->ref_t_data->* TO <lfs_t_data>.
+    IF <lfs_t_data> IS ASSIGNED AND <lfs_t_data> IS INITIAL.
+      APPEND text-210 TO et_top[].
+      APPEND lc_intro TO et_top[].
+
+    ELSE.
+      APPEND text-212 TO et_top[].
+      APPEND lc_intro TO et_top[].
+      APPEND text-213 TO et_top[].
+      APPEND lc_intro TO et_top[].
+
+    ENDIF.
+*   Be nice, say Goodbye:
+    APPEND lc_intro TO et_bottom[].
+    APPEND lc_intro TO et_bottom[].
+    APPEND text-200 TO et_bottom[].
+    APPEND lc_intro TO et_bottom[].
+    APPEND text-201 TO et_bottom[].
+    APPEND lc_intro TO et_bottom[].
+
+  ENDMETHOD.
+  METHOD: _create_texts_db2.
+    CONSTANTS: lc_intro  TYPE string VALUE '<br /><br />'.
+    DATA: lv_msg         TYPE string.
+    DATA: lv_msg_        TYPE string.
+*  ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨  *
+*   Be nice, say Hi:
+    APPEND text-300 TO et_top[].
+    APPEND lc_intro TO et_top[].
+*   Depending on the Release Type, compose:
+    CASE abap_true.
+      WHEN r_wend.
+        lv_msg = '<strong>: This Weekend</strong> '.
+        lv_msg_ = text-410.
+      WHEN r_urgn.
+        lv_msg = '<strong>: Tonight</strong> '.
+        lv_msg_ = text-411.
+      WHEN r_emer.
+        lv_msg = '<strong>: Immediately</strong> '.
+        lv_msg_ = text-412.
+
+    ENDCASE.
+    CONCATENATE text-301 lv_msg INTO lv_msg.
+    lv_msg_ = me->_get_release_date( iv_type = lv_msg_
+                                     iv_target = 'BODY' ).
+    CONCATENATE lv_msg lv_msg_ INTO lv_msg SEPARATED BY space.
+    APPEND lv_msg TO et_top[].
+    APPEND lc_intro TO et_top[].
+    CLEAR lv_msg.
+
+*   If it is a Weekend Release, ask for analysis and send all object or only inform about Very High & High Risk ones:
+    APPEND lc_intro TO et_bottom[].
+    CLEAR: lv_msg.
+    IF r_wend EQ abap_true.
+      CASE abap_true.
+        WHEN r_fis. "FIS Stop Release
+          lv_msg = text-302.
+
+        WHEN r_non. "Non-FIS Stop Release
+          lv_msg = text-303.
+
+      ENDCASE.
+    ELSE.
+      lv_msg = text-303.
+
+    ENDIF.
+    CONCATENATE '<strong>' lv_msg '</strong>' INTO lv_msg.
+    APPEND lv_msg TO et_bottom[].
+    APPEND lc_intro TO et_bottom[].
+
+*   Farewell and clarification of (***) signification:
+    CLEAR: lv_msg.
+    CONCATENATE text-304 text-305 INTO lv_msg SEPARATED BY space.
+    APPEND lv_msg TO et_bottom[].
+    APPEND lc_intro TO et_bottom[].
+    APPEND text-306 TO et_bottom[].
+    APPEND lc_intro TO et_bottom[].
+    APPEND text-307 TO et_bottom[].
+    APPEND lc_intro TO et_bottom[].
+    APPEND text-308 TO et_bottom[].
+    APPEND lc_intro TO et_bottom[].
+
+  ENDMETHOD.
+  METHOD: _selscrn_to_outputs.
+    CONSTANTS: lc_intro  TYPE string VALUE '<br /><br />'.
+    DATA: ls_scrn        TYPE zif_email_types=>ty_selcrn.
+    DATA: lt_scrn_h      TYPE zif_email_types=>tty_selcrn.
+    DATA: lt_scrn_d      TYPE zif_email_types=>tty_selcrn.
+    DATA: lt_scrn_       TYPE STANDARD TABLE OF rsparams.
+    DATA: ls_scrn_       TYPE rsparams.
+    FIELD-SYMBOLS: <lfs_t_header> TYPE STANDARD TABLE.
+    FIELD-SYMBOLS: <lfs_t_data>   TYPE STANDARD TABLE.
+*  ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨  *
+
+    "Get selection screen parameters:
+    FREE me->ref_t_data.
+    CREATE DATA me->ref_t_data TYPE zif_email_types=>tty_selcrn.
+    ASSIGN me->ref_t_data->* TO <lfs_t_data>.
+    CLEAR <lfs_t_data>.
+    CALL FUNCTION 'RS_REFRESH_FROM_SELECTOPTIONS'
+      EXPORTING
+        curr_report     = sy-repid
+      TABLES
+        selection_table = lt_scrn_[]
+*       SELECTION_TABLE_255       =
+*       EXCEPTIONS
+*       NOT_FOUND       = 1
+*       NO_REPORT       = 2
+*       OTHERS          = 3
+      .
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ELSE.
+      LOOP AT lt_scrn_[] INTO ls_scrn_.
+        CASE ls_scrn_-selname.
+          WHEN 'P_ADDATT'.
+            ls_scrn-selname  = 'Add Attachment w/ DDIC'.
+          WHEN 'P_DATSUB'.
+            ls_scrn-selname  = 'Date included in Subject'.
+          WHEN 'P_NOTREL'.
+            ls_scrn-selname  = 'Analyse Not-Released as well'.
+          WHEN 'P_SEND'.
+            ls_scrn-selname  = 'Send Email w/ Outputs'.
+          WHEN 'P_SNDR'.
+            ls_scrn-selname  = 'Sender'.
+          WHEN 'R_DB2'.
+            ls_scrn-selname  = 'DB2 Analysis'.
+          WHEN 'R_EMER'.
+            ls_scrn-selname  = 'Emergency Transport'.
+          WHEN 'R_FIS'.
+            ls_scrn-selname  = 'FIS Stop Release'.
+          WHEN 'R_FUNC'.
+            ls_scrn-selname  = 'Functional Analysis'.
+          WHEN 'R_NON'.
+            ls_scrn-selname  = 'Non-FIS Stop Release'.
+          WHEN 'R_TECH'.
+            ls_scrn-selname  = 'Technical Analysis'.
+          WHEN 'R_URGN'.
+            ls_scrn-selname  = 'Urgent Transport'.
+          WHEN 'R_WEND'.
+            ls_scrn-selname  = 'Weekend Transport'.
+          WHEN 'S_DATUM'.
+            ls_scrn-selname  = 'Planned Production Date'.
+          WHEN 'S_RCPNTS'.
+            ls_scrn-selname  = 'Receivers'.
+          WHEN 'S_REQID'.
+            ls_scrn-selname  = 'HPALM Requirement ID'.
+          WHEN 'S_STATUS'.
+            ls_scrn-selname  = 'HPALM Release Status'.
+          WHEN 'S_TRKORR'.
+            ls_scrn-selname  = 'TRs / TOCs / Tasks'.
+        ENDCASE.
+
+        ls_scrn-kind     = ls_scrn_-kind  .
+        ls_scrn-sign     = ls_scrn_-sign  .
+        ls_scrn-option   = ls_scrn_-option.
+        ls_scrn-low      = ls_scrn_-low   .
+        ls_scrn-high     = ls_scrn_-high  .
+        APPEND ls_scrn TO lt_scrn_d[].
+        CLEAR ls_scrn.
+
+      ENDLOOP.
+      <lfs_t_data> = lt_scrn_d[].
+
+    ENDIF.
+
+    FREE me->ref_t_header.
+    CREATE DATA me->ref_t_header TYPE zif_email_types=>tty_selcrn.
+    ASSIGN me->ref_t_header->* TO <lfs_t_header>.
+    CLEAR <lfs_t_header>.
+    ls_scrn-selname  = 'Parameter'.
+    ls_scrn-kind     = 'Type'.
+    ls_scrn-sign     = 'Sign'.
+    ls_scrn-option   = 'Option'.
+    ls_scrn-low      = 'Low Value'.
+    ls_scrn-high     = 'High Value'.
+    APPEND ls_scrn TO lt_scrn_h[].
+    <lfs_t_header> = lt_scrn_h[].
+
+  ENDMETHOD.
+ENDCLASS.
+
+CLASS lcl_test DEFINITION FOR TESTING. "#AU Risk_Level Harmless
+  PRIVATE SECTION.
+    METHODS generate_testing_data FOR TESTING.
+
+ENDCLASS.                    "lcl_test DEFINITION
+CLASS lcl_test IMPLEMENTATION.
+  METHOD generate_testing_data.
+    DATA: ls_tr_def_cr     TYPE zxx_tr_def_cr.
+    DATA: ls_tr_def_cr_db  TYPE zxx_tr_def_cr.
+    DATA: ls_hpalm_data    TYPE zxx_hpalm_data.
+    DATA: ls_hpalm_data_db TYPE zxx_hpalm_data.
+
+    ls_tr_def_cr-mandt           = '200'.
+    ls_tr_def_cr-trkorr          = 'CADK9A0C0K'.
+    ls_tr_def_cr-zzdef_cr        = 'INC0561376'.
+    ls_tr_def_cr-zzoth_def_cr    = ''.
+    ls_tr_def_cr-zzrel_uname     = 'E425586'.
+    ls_tr_def_cr-zzrel_date      = '20200514'.
+    ls_tr_def_cr-zzrel_time      = ''.
+    ls_tr_def_cr-zztr_prev       = ''.
+    ls_tr_def_cr-zsystem         = ''.
+    ls_tr_def_cr-zclient         = ''.
+    ls_tr_def_cr-ztrfunction     = ''.
+    ls_tr_def_cr-zapproved       = ''.
+    ls_tr_def_cr-zarchived       = ''.
+    ls_tr_def_cr-zreq_id         = '34148'.
+    ls_tr_def_cr-zmodified_date  = ''.
+    ls_tr_def_cr-zmodified_time  = ''.
+    ls_tr_def_cr-zmodified_by    = ''.
+
+    MODIFY zxx_tr_def_cr FROM ls_tr_def_cr.
+    COMMIT WORK.
+
+    SELECT SINGLE * FROM zxx_tr_def_cr INTO ls_tr_def_cr_db WHERE trkorr = 'CADK9A0C0K'.
+
+    ls_hpalm_data-mandt           = '200'.
+    ls_hpalm_data-zreq_id         = '34148'.
+    ls_hpalm_data-zname           = 'INC0561376'.
+    ls_hpalm_data-zdescription    = 'Testing DDIC Analysis'.
+    ls_hpalm_data-zstatus_hpalm   = 'Approved For Production'.
+    ls_hpalm_data-zsup_owner_id   = 'E425586'.
+    ls_hpalm_data-zsup_owner_name = 'Adrian Romero-Dapena'.
+    ls_hpalm_data-zreq_type       = ''.
+    ls_hpalm_data-zdelivery_type  = ''.
+    ls_hpalm_data-zplanned_date   = '20200517'.
+    ls_hpalm_data-zibsp_owner_id  = 'KW052889'.
+    ls_hpalm_data-zrel_status     = 'Approved For Production'.
+    ls_hpalm_data-zcreation_date  = '20200514'.
+    ls_hpalm_data-zcreated_by     = 'E425586'.
+    ls_hpalm_data-zcreation_time  = '092600'.
+    ls_hpalm_data-zmodified_date  = ''.
+    ls_hpalm_data-zmodified_by    = ''.
+    ls_hpalm_data-zmodified_time  = ''.
+
+    MODIFY zxx_hpalm_data FROM ls_hpalm_data.
+    COMMIT WORK.
+
+    ls_hpalm_data-mandt           = '200'.
+    ls_hpalm_data-zreq_id         = '741'.
+    ls_hpalm_data-zname           = 'EXTGFIDUMMY'.
+    ls_hpalm_data-zdescription    = 'Testing DDIC Analysis'.
+    ls_hpalm_data-zstatus_hpalm   = 'Approved For Production'.
+    ls_hpalm_data-zsup_owner_id   = 'E425586'.
+    ls_hpalm_data-zsup_owner_name = 'Adrian Romero-Dapena'.
+    ls_hpalm_data-zreq_type       = ''.
+    ls_hpalm_data-zdelivery_type  = ''.
+    ls_hpalm_data-zplanned_date   = '20200517'.
+    ls_hpalm_data-zibsp_owner_id  = 'KW052889'.
+    ls_hpalm_data-zrel_status     = 'Approved For Production'.
+    ls_hpalm_data-zcreation_date  = '20200514'.
+    ls_hpalm_data-zcreated_by     = 'E425586'.
+    ls_hpalm_data-zcreation_time  = '092600'.
+    ls_hpalm_data-zmodified_date  = ''.
+    ls_hpalm_data-zmodified_by    = ''.
+    ls_hpalm_data-zmodified_time  = ''.
+
+    MODIFY zxx_hpalm_data FROM ls_hpalm_data.
+    COMMIT WORK.
+
+    SELECT SINGLE * FROM zxx_tr_def_cr INTO ls_tr_def_cr_db WHERE trkorr = 'UADK9A0CPW'.
+
+
+    cl_aunit_assert=>assert_equals(
+          act = ls_tr_def_cr
+          exp = ls_tr_def_cr_db
+          msg = 'Validations successfully passed' ).
+
+  ENDMETHOD.
+ENDCLASS.
